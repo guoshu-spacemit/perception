@@ -1,0 +1,96 @@
+{
+  "source_repository": "https://gitlab.dc.com:8443/yanyongxian/las2-stereo-sdk.git",
+  "source_revision": "54129d0db11da4a05abc90024e08c30f60dd423f",
+  "public_header_sha256": "f6fbac0c549cd09989122e30726ae69e937890a5a99532b6376661865e355980",
+  "files": {
+    "src/las2_usb_stereo.cpp": {
+      "source": "cpp/src/las2_usb_stereo.cpp",
+      "sha256": "04c9ecce6e831a29548a37585ddac46545482976a6f786285d03abf09c5295bc"
+    },
+    "src/las2_usb_stereo_internal.h": {
+      "source": "cpp/src/las2_usb_stereo_internal.h",
+      "sha256": "ca258a75717d5d813ec131d96b82430cfbcb62cbdb9973183273f54742b26285"
+    },
+    "src/usb_mpp_las2_demo.cpp": {
+      "source": "cpp/src/usb_mpp_las2_demo.cpp",
+      "sha256": "134cd946cd7575b82f2f36c6d853e5149f4dae16527cd117b4f2a77ed9322c69"
+    },
+    "src/realsense_las2_demo.cpp": {
+      "source": "cpp/src/realsense_las2_demo.cpp",
+      "sha256": "0e8d170387dec23efdcc05088649c78d4c308f22eef8990f803ecf8103099532"
+    },
+    "src/omni_rectify.hpp": {
+      "source": "cpp/src/omni_rectify.hpp",
+      "sha256": "547c1c8882b3a4b07d51d27fd12c481040f77983caca008ddb03b90dda8b4437"
+    },
+    "src/rectify_map_ops.hpp": {
+      "source": "cpp/src/rectify_map_ops.hpp",
+      "sha256": "2222f0271cd2117c13f54a11ae2723aafb3af43f70853260652162e92ecc51c5"
+    },
+    "src/shared_initialization_cache.hpp": {
+      "source": "cpp/src/shared_initialization_cache.hpp",
+      "sha256": "46f310c22c22e44cdb9c80fc3e83f2cefe8aaef5966d4a57c6d5b15836dcc561"
+    },
+    "src/opencl_profiling.hpp": {
+      "source": "cpp/src/opencl_profiling.hpp",
+      "sha256": "ed01da12d80d730c2f3e254440a02e2966cdbc7bc88896f489fa338ccb0be9fe"
+    },
+    "src/stereo_matching_engine.hpp": {
+      "source": "cpp/src/stereo_matching_engine.hpp",
+      "sha256": "69370204e4ae1b3a981f0b72d0f2ed04cc3504ee2d2fe498cf7e73f3c22dcdae"
+    },
+    "third_party/dmabufheap/include/BufferAllocator.h": {
+      "source": "third_party/dmabufheap/include/BufferAllocator.h",
+      "sha256": "3746b525551eba37edb5307c407b5064956121b36d0e44f2c0ad049d4182d3ec"
+    },
+    "third_party/dmabufheap/include/BufferAllocatorWrapper.h": {
+      "source": "third_party/dmabufheap/include/BufferAllocatorWrapper.h",
+      "sha256": "8ea9ccca9f39438b80a680d1bcf9fe854f90a52bd27cbf57d60b3da4bb6d9c68"
+    },
+    "third_party/dmabufheap/include/dmabufheap-defs.h": {
+      "source": "third_party/dmabufheap/include/dmabufheap-defs.h",
+      "sha256": "0805e89e90eafbf58d4782e47e09ed4cd87261a2a604651f1421bfe9922fe7db"
+    },
+    "third_party/dmabufheap/src/BufferAllocator.cpp": {
+      "source": "third_party/dmabufheap/src/BufferAllocator.cpp",
+      "sha256": "5d2354b28a12eb1e515dafa351d47143f613945ea5aeecd993cb06a9a00c4870"
+    },
+    "third_party/dmabufheap/src/BufferAllocatorWrapper.cpp": {
+      "source": "third_party/dmabufheap/src/BufferAllocatorWrapper.cpp",
+      "sha256": "efebf50a5dfb72350ec31444044c6ed4f0d43e27ae0823efe5643599f237f1f4"
+    },
+    "third_party/dmabufheap/LICENSE": {
+      "source": "third_party/dmabufheap/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "third_party/dmabufheap/README.vendor.md": {
+      "source": "third_party/dmabufheap/README.vendor.md",
+      "sha256": "cf6b23bf68b85357aeedabdfa69c07d734112b712357f55bd14b5e0c7ad7d02f"
+    },
+    "tests/test_rectify_map_ops.cpp": {
+      "source": "cpp/tests/test_rectify_map_ops.cpp",
+      "sha256": "f4aa65e9f1cb3edc7b6f243c3362a69b706021f29b28b442ac8f8ed2d2946924"
+    },
+    "tests/test_shared_rectification.cpp": {
+      "source": "cpp/tests/test_shared_rectification.cpp",
+      "sha256": "b10a317ff2245bd71608286ef2a5013e8902e27164d98360a118c6f4682370a3"
+    },
+    "tests/test_opencl_profiling.cpp": {
+      "source": "cpp/tests/test_opencl_profiling.cpp",
+      "sha256": "8f32a4abdc49736c9ac55618669357b70526a1e786651bdc66f5fb61bdb2002a"
+    },
+    "tests/test_imagenet_opencl.cpp": {
+      "source": "cpp/tests/test_imagenet_opencl.cpp",
+      "sha256": "fa28ea6eecaadd0c239d4c847b4d51d4844c9cdff9b3946b6aafff69766f9659"
+    },
+    "tests/test_fp16_opencl.cpp": {
+      "source": "cpp/tests/test_fp16_opencl.cpp",
+      "sha256": "5c1ce1aa4d611b6e4062e38eed97b1c31f1d7c3a89057f7d48dfd46254aabf81"
+    },
+    "tests/test_preview_opencl.cpp": {
+      "source": "cpp/tests/test_preview_opencl.cpp",
+      "sha256": "282841efa9ac96a45e38db4c6d0a4b6e9af5fa775980c46e9c8c4dfa41d41e96"
+    }
+  },
+  "private_runtime_and_models": "Not included; supplied through ONNXRUNTIME_ROOT and runtime model configuration."
+}

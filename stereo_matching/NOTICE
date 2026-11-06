@@ -1,0 +1,47 @@
+Stereo Matching / LAS2 来源说明
+================================
+
+1. ExternalStereo SDK 的直接来源
+
+本目录的 ExternalStereo 公共接口、实现和相关测试迁自：
+  仓库：https://gitlab.dc.com:8443/yanyongxian/las2-stereo-sdk.git
+  版本：54129d0db11da4a05abc90024e08c30f60dd423f
+
+原路径包括 cpp/include/las2_usb_stereo.h、cpp/src/ 和 cpp/tests/。
+迁入后的文件路径、原路径和 SHA-256 记录在 SOURCE_PROVENANCE.json；
+公开接口的哈希也保存在该清单中。
+
+本次整合主要涉及 Robot SDK 的 CMake 接入、MPP 头文件复用、安装导出、
+配套运行工件安装及验证。SpacemiT Robot Team 是本组件的集成维护者。
+
+以上仓库是本次代码的直接迁入来源。现有交付材料未注明 LAS2 算法或
+模型的原始作者、原始算法仓库及论文引用，这些信息尚待来源方补充。
+
+2. 第三方 dmabufheap
+
+third_party/dmabufheap 保留以下原始版权声明：
+  Copyright (C) 2020 The Android Open Source Project
+
+上游项目：
+  https://android.googlesource.com/platform/system/memory/libdmabufheap/
+
+该组件的 Apache License 2.0 全文位于：
+  third_party/dmabufheap/LICENSE
+
+源码快照说明及文件范围见：
+  third_party/dmabufheap/README.vendor.md
+
+此处的 AOSP 署名及 Apache-2.0 许可说明对应 dmabufheap 组件。
+
+3. 外部运行库与模型
+
+配套的 SpacemiT ONNX Runtime / EP、TCM 运行库和 ExternalStereo FP16
+模型作为外部构建、部署工件提供；版本、接口及哈希见
+RUNTIME_CONTRACT.json。
+
+外部运行工件的许可文件随所选工件保留。启用运行库安装时，构建规则
+会将所提供的运行库 LICENSE 安装为：
+  share/stereo_matching/licenses/external-ort-LICENSE
+
+本说明用于保留已确认的代码和工件来源；各组件的版权及许可信息
+以其原始文件和随附文档为准。

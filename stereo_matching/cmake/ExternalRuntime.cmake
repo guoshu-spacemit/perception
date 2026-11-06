@@ -1,0 +1,65 @@
+# Deployment artifacts are selected explicitly by ONNXRUNTIME_ROOT. Keep them
+# outside the source tree, but make an installed ExternalStereo prefix usable
+# without exporting a build-machine path into its CMake package or ELF RPATH.
+option(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME
+  "Install the selected external ORT/EP runtime alongside ExternalStereo" ON)
+set(STEREO_MATCHING_EXTERNAL_INPUT_MODEL "" CACHE FILEPATH
+  "Optional matching ExternalStereo model, installed separately from the tensor model")
+
+if(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME)
+  set(_las2_runtime_files)
+  foreach(_las2_runtime_library onnxruntime onnxruntime_providers_shared spacemit_ep spine_tcm)
+    file(GLOB _las2_runtime_family LIST_DIRECTORIES FALSE
+      "${ONNXRUNTIME_ROOT}/lib/lib${_las2_runtime_library}.so"
+      "${ONNXRUNTIME_ROOT}/lib/lib${_las2_runtime_library}.so.*")
+    if(NOT _las2_runtime_family)
+      message(FATAL_ERROR
+        "ExternalStereo runtime deployment requires lib${_las2_runtime_library}.so* in ONNXRUNTIME_ROOT/lib; "
+        "select the complete matched runtime artifact or disable STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME")
+    endif()
+    foreach(_las2_runtime_file IN LISTS _las2_runtime_family)
+      if(NOT EXISTS "${_las2_runtime_file}")
+        message(FATAL_ERROR "Broken external runtime symlink: ${_las2_runtime_file}")
+      endif()
+      if(IS_SYMLINK "${_las2_runtime_file}")
+        file(READ_SYMLINK "${_las2_runtime_file}" _las2_runtime_link)
+        if(IS_ABSOLUTE "${_las2_runtime_link}")
+          message(FATAL_ERROR
+            "The external runtime artifact must use relocatable relative symlinks: ${_las2_runtime_file}")
+        endif()
+      endif()
+    endforeach()
+    list(APPEND _las2_runtime_files ${_las2_runtime_family})
+  endforeach()
+  if(NOT EXISTS "${ONNXRUNTIME_ROOT}/LICENSE")
+    message(FATAL_ERROR "The selected external runtime artifact must include LICENSE")
+  endif()
+  # FILES preserves the artifact's relative ABI and dlopen-name symlinks.
+  install(FILES ${_las2_runtime_files} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  set(_las2_deployed_checksums "${CMAKE_CURRENT_BINARY_DIR}/DEPLOYED_RUNTIME_SHA256SUMS")
+  file(WRITE "${_las2_deployed_checksums}" "")
+  foreach(_las2_runtime_file IN LISTS _las2_runtime_files)
+    file(SHA256 "${_las2_runtime_file}" _las2_runtime_sha256)
+    get_filename_component(_las2_runtime_name "${_las2_runtime_file}" NAME)
+    file(APPEND "${_las2_deployed_checksums}"
+      "${_las2_runtime_sha256}  ${CMAKE_INSTALL_LIBDIR}/${_las2_runtime_name}\n")
+  endforeach()
+  install(FILES "${_las2_deployed_checksums}"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/external_input/runtime)
+  install(FILES "${ONNXRUNTIME_ROOT}/LICENSE"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/licenses
+    RENAME external-ort-LICENSE)
+  install(FILES "${ONNXRUNTIME_ROOT}/SHA256SUMS"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/external_input/runtime
+    RENAME SOURCE_SHA256SUMS OPTIONAL)
+  install(FILES "${ONNXRUNTIME_ROOT}/README.vendor.md"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/external_input/runtime OPTIONAL)
+endif()
+
+if(STEREO_MATCHING_EXTERNAL_INPUT_MODEL)
+  if(NOT EXISTS "${STEREO_MATCHING_EXTERNAL_INPUT_MODEL}")
+    message(FATAL_ERROR "STEREO_MATCHING_EXTERNAL_INPUT_MODEL does not exist")
+  endif()
+  install(FILES "${STEREO_MATCHING_EXTERNAL_INPUT_MODEL}"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/external_input/model)
+endif()
