@@ -5,10 +5,9 @@
   <description>LAS2 inference SDK and optional matched external NV12 input backend.</description>
   <maintainer email="robot_team@spacemit.com">SpacemiT Robot Team</maintainer>
   <license>LicenseRef-SpacemiT-Stereo-Matching</license>
-  <depend>mpp</depend>
+  <build_depend>mpp</build_depend>
   <system_depend realm="target">libopencv-dev</system_depend>
   <system_depend realm="target">ocl-icd-opencl-dev</system_depend>
   <system_depend realm="target">libyaml-cpp-dev</system_depend>
-  <system_depend realm="target">libdrm-dev</system_depend>
   <export><build_type>cmake</build_type></export>
 </package>

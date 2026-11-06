@@ -1,41 +1,64 @@
 Stereo Matching / LAS2 来源说明
 ================================
 
-1. ExternalStereo SDK 的直接来源
+1. 原始算法、作者与许可证
 
-本目录的 ExternalStereo 公共接口、实现和相关测试迁自：
-  仓库：https://gitlab.dc.com:8443/yanyongxian/las2-stereo-sdk.git
-  版本：54129d0db11da4a05abc90024e08c30f60dd423f
+Lite Any Stereo（LAS）系列的官方算法仓库：
+  https://github.com/TomTomTommi/LiteAnyStereo
 
-原路径包括 cpp/include/las2_usb_stereo.h、cpp/src/ 和 cpp/tests/。
-迁入后的文件路径、原路径和 SHA-256 记录在 SOURCE_PROVENANCE.json；
-公开接口的哈希也保存在该清单中。
-迁入后的资源生命周期修复另列于清单的 local_modifications；原始来源
-哈希保持不变，当前文件哈希单独记录，不将修改后的实现冒充原始快照。
+LAS2 算法论文：
+  Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching
+  Junpeng Jing, Ronglai Zuo, Zhelun Shen, Shangchen Zhou,
+  Rolandos Alexandros Potamias, Stefanos Zafeiriou,
+  Krystian Mikolajczyk, Jiankang Deng
+  arXiv:2606.24457, 2026
+  https://arxiv.org/abs/2606.24457
 
-本次整合主要涉及 Robot SDK 的 CMake 接入、MPP 头文件复用、安装导出、
-配套运行工件安装及验证。SpacemiT Robot Team 是本组件的集成维护者。
+官方算法仓库的 MIT 许可证保留以下原始版权声明：
+  Copyright (c) 2025 Junpeng Jing
 
-以上仓库是本次代码的直接迁入来源。现有交付材料未注明 LAS2 算法或
-模型的原始作者、原始算法仓库及论文引用，这些信息尚待来源方补充。
+原始许可证全文位于：
+  licenses/LiteAnyStereo-MIT.txt
 
-2. 第三方 dmabufheap
+论文引用采用官方仓库公布的信息：
 
-third_party/dmabufheap 保留以下原始版权声明：
+@article{jing2026litestereov2,
+  title={Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching},
+  author={Junpeng Jing and Ronglai Zuo and Zhelun Shen and Shangchen Zhou and Rolandos Alexandros Potamias and Stefanos Zafeiriou and Krystian Mikolajczyk and Jiankang Deng},
+  year={2026},
+  eprint={2606.24457},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2606.24457}
+}
+
+2. SpacemiT SDK 适配
+
+SpacemiT Robot Team 维护本目录面向 K3 的 C++ SDK 适配，包括外部 NV12
+输入、标定校正、DMA-BUF 预处理、ORT/EP 推理接入、深度及 RGB 输出，
+以及 Robot SDK 的构建、安装导出和资源生命周期验证。
+
+算法上游提供 LAS2 模型及官方参考实现；本目录的 C++ 平台适配与其
+分别记录，不能视为官方仓库的逐字节源码快照。上游与适配说明见
+UPSTREAM.json。
+
+3. 第三方 dmabufheap
+
+thirdparty/dmabufheap 保留以下原始版权声明：
   Copyright (C) 2020 The Android Open Source Project
 
 上游项目：
   https://android.googlesource.com/platform/system/memory/libdmabufheap/
 
 该组件的 Apache License 2.0 全文位于：
-  third_party/dmabufheap/LICENSE
+  thirdparty/dmabufheap/LICENSE
 
 源码快照说明及文件范围见：
-  third_party/dmabufheap/README.vendor.md
+  thirdparty/dmabufheap/README.vendor.md
 
 此处的 AOSP 署名及 Apache-2.0 许可说明对应 dmabufheap 组件。
 
-3. 外部运行库与模型
+4. 外部运行库与模型
 
 配套的 SpacemiT ONNX Runtime / EP、TCM 运行库和 ExternalStereo FP16
 模型作为外部构建、部署工件提供；版本、接口及哈希见
@@ -45,5 +68,4 @@ RUNTIME_CONTRACT.json。
 会将所提供的运行库 LICENSE 安装为：
   share/stereo_matching/licenses/external-ort-LICENSE
 
-本说明用于保留已确认的代码和工件来源；各组件的版权及许可信息
-以其原始文件和随附文档为准。
+各组件的版权及许可信息以其原始文件和随附文档为准。

@@ -1,9 +1,7 @@
 # dmabufheap vendor snapshot
 
 This directory contains the minimal Android-compatible `libdmabufheap`
-allocator sources required by the LAS2 DMA-BUF path. It was imported on
-2026-09-08 from the snapshot used by the validated K3 prototype at
-`/root/nv12_dmabuf_opencl_preprocess/third_party/dmabufheap`.
+allocator sources required by the LAS2 DMA-BUF path.
 
 The source files identify the Android Open Source Project as their copyright
 holder and are distributed under Apache License 2.0. The license text is kept

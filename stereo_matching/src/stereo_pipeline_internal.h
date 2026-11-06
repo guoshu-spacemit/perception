@@ -1,16 +1,18 @@
-#ifndef LAS2_USB_STEREO_INTERNAL_H
-#define LAS2_USB_STEREO_INTERNAL_H
+#ifndef STEREO_PIPELINE_INTERNAL_H
+#define STEREO_PIPELINE_INTERNAL_H
 
 #include <stdint.h>
 
 #define LAS2_MAX_INSTANCES 16
 
-typedef enum Las2PixelFormat {
+typedef enum Las2PixelFormat
+{
     LAS2_PIXEL_FORMAT_YUYV = 0,
     LAS2_PIXEL_FORMAT_MJPEG = 1
 } Las2PixelFormat;
 
-typedef struct Las2Config {
+typedef struct Las2Config
+{
     const char* video_device;
     const char* model_path;
     const char* calib_path;
@@ -33,7 +35,8 @@ typedef struct Las2Config {
     int nv12_image_sampler;
 } Las2Config;
 
-typedef struct Las2InternalFrame {
+typedef struct Las2InternalFrame
+{
     const float* disparity;
     int width;
     int height;
@@ -52,15 +55,16 @@ typedef struct Las2InternalFrame {
 
 typedef struct Las2Handle Las2Handle;
 
-extern "C" {
-void las2_default_config(Las2Config* cfg);
-Las2Handle* las2_create(const Las2Config* cfg);
-int las2_start(Las2Handle* handle);
-int las2_get_frame(Las2Handle* handle, Las2InternalFrame* out, int timeout_ms);
-void las2_release_frame(Las2Handle* handle, Las2InternalFrame* frame);
-void las2_stop(Las2Handle* handle);
-void las2_destroy(Las2Handle* handle);
-const char* las2_last_error(Las2Handle* handle);
+extern "C"
+{
+    void las2_default_config(Las2Config* cfg);
+    Las2Handle* las2_create(const Las2Config* cfg);
+    int las2_start(Las2Handle* handle);
+    int las2_get_frame(Las2Handle* handle, Las2InternalFrame* out, int timeout_ms);
+    void las2_release_frame(Las2Handle* handle, Las2InternalFrame* frame);
+    void las2_stop(Las2Handle* handle);
+    void las2_destroy(Las2Handle* handle);
+    const char* las2_last_error(Las2Handle* handle);
 }
 
 #endif

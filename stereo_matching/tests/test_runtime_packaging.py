@@ -4,6 +4,7 @@
 import hashlib
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -29,6 +30,31 @@ def shared_library(directory, name, version, soname, source, *arguments):
     unversioned = version.split(".so")[0] + ".so"
     if unversioned != version:
         (directory / unversioned).symlink_to(soname)
+
+
+def relocated_consumer(root, prefix, artifact):
+    """Execute against the relocated install, including provider dlopen calls."""
+    consumer = root / "consumer"
+    consumer.mkdir()
+    (consumer / "main.c").write_text(
+        "extern int fixture_backend(void);\n"
+        "int main(void) { return fixture_backend() == 12 ? 0 : 1; }\n")
+    (consumer / "CMakeLists.txt").write_text('''cmake_minimum_required(VERSION 3.16)
+project(consumer LANGUAGES C)
+find_package(stereo_matching CONFIG REQUIRED COMPONENTS external_input)
+add_executable(consumer main.c)
+target_link_libraries(consumer PRIVATE stereo_matching::external_input)
+''')
+    environment = os.environ.copy()
+    environment.pop("LD_LIBRARY_PATH", None)
+    run("cmake", "-S", str(consumer), "-B", str(root / "consumer-build"),
+        f"-DCMAKE_PREFIX_PATH={prefix}", env=environment)
+    run("cmake", "--build", str(root / "consumer-build"), env=environment)
+    run(str(root / "consumer-build/consumer"), env=environment)
+    dynamic = run("readelf", "-d", str(prefix / "lib/libstereo_matching_pipeline.so"))
+    assert "$ORIGIN" in dynamic and str(artifact) not in dynamic
+    configuration = (prefix / "lib/cmake/stereo_matching/stereo_matchingConfig.cmake").read_text()
+    assert str(artifact) not in configuration
 
 
 def main():
@@ -65,10 +91,15 @@ def main():
         (project / "include").mkdir()
         (project / "CMakeLists.txt").write_text(f'''cmake_minimum_required(VERSION 3.16)
 project(runtime_fixture LANGUAGES C)
+# Exercise target-architecture decisions with host ELF fixtures. This is not a
+# cross-compiler or RISC-V ABI test.
+if(DEFINED FIXTURE_TARGET_PROCESSOR)
+  set(CMAKE_SYSTEM_PROCESSOR "${{FIXTURE_TARGET_PROCESSOR}}")
+endif()
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 add_library(backend SHARED backend.c)
-set_target_properties(backend PROPERTIES OUTPUT_NAME las2_usb_stereo INSTALL_RPATH "$ORIGIN")
+set_target_properties(backend PROPERTIES OUTPUT_NAME stereo_matching_pipeline INSTALL_RPATH "$ORIGIN")
 target_link_libraries(backend PRIVATE "${{ONNXRUNTIME_ROOT}}/lib/libonnxruntime.so"
   "${{ONNXRUNTIME_ROOT}}/lib/libspacemit_ep.so")
 target_link_options(backend PRIVATE -Wl,--no-undefined)
@@ -88,7 +119,10 @@ include("{COMPONENT}/cmake/ExternalRuntime.cmake")
         build = root / "build"
         run("cmake", "-S", str(project), "-B", str(build),
             f"-DCMAKE_INSTALL_PREFIX={prefix}", f"-DONNXRUNTIME_ROOT={artifact}",
-            f"-DSTEREO_MATCHING_EXTERNAL_INPUT_MODEL={model}")
+            f"-DSTEREO_MATCHING_EXTERNAL_INPUT_MODEL={model}",
+            "-DFIXTURE_TARGET_PROCESSOR=x86_64")
+        assert "STEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM:BOOL=OFF" in (
+            build / "CMakeCache.txt").read_text()
         run("cmake", "--build", str(build))
         run("cmake", "--install", str(build))
         runtime_files = sorted(libraries.glob("*.so*"))
@@ -108,31 +142,75 @@ include("{COMPONENT}/cmake/ExternalRuntime.cmake")
         assert (metadata / "model/LAS2_M_288x384.fp16.onnx").read_text() == "original tensor model\n"
         assert (metadata / "external_input/model" / model.name).read_text() == "external model\n"
         assert not (prefix / "include/onnxruntime_cxx_api.h").exists()
+        # Supplied optional TCM was installed above; the same complete artifact
+        # must also satisfy an explicit declaration of its provider's dlopen use.
+        run("cmake", "-S", str(project), "-B", str(build),
+            "-DSTEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM=ON")
+        run("cmake", "--install", str(build))
+
+        # A generic provider without TCM must configure, install and run. The
+        # remaining runtime contracts (license, links and checksums) still apply.
+        generic_artifact = root / "generic-runtime"
+        shutil.copytree(artifact, generic_artifact, symlinks=True)
+        generic_libraries = generic_artifact / "lib"
+        for pattern in ("libspine_tcm.so*", "libspacemit_ep.so*"):
+            for path in generic_libraries.glob(pattern):
+                path.unlink()
+        shared_library(generic_libraries, "ep.c", "libspacemit_ep.so.2.0.4",
+                       "libspacemit_ep.so.2", "int ep(void) { return 7; }\n")
+        generic_prefix = root / "generic-prefix"
+        generic_build = root / "generic-build"
+        run("cmake", "-S", str(project), "-B", str(generic_build),
+            f"-DCMAKE_INSTALL_PREFIX={generic_prefix}",
+            f"-DONNXRUNTIME_ROOT={generic_artifact}",
+            "-DFIXTURE_TARGET_PROCESSOR=x86_64")
+        cache = (generic_build / "CMakeCache.txt").read_text()
+        assert "STEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM:BOOL=OFF" in cache
+        run("cmake", "--build", str(generic_build))
+        run("cmake", "--install", str(generic_build))
+        assert not list((generic_prefix / "lib").glob("libspine_tcm.so*"))
+        generic_checksums = (generic_prefix / "share/stereo_matching/external_input/runtime/"
+                            "DEPLOYED_RUNTIME_SHA256SUMS").read_text()
+        assert "spine_tcm" not in generic_checksums
+        for line in generic_checksums.splitlines():
+            checksum, relative = line.split("  ", 1)
+            assert hashlib.sha256((generic_prefix / relative).read_bytes()).hexdigest() == checksum
+        assert (generic_prefix / "share/stereo_matching/licenses/external-ort-LICENSE").is_file()
+        for path in generic_libraries.glob("*.so*"):
+            installed = generic_prefix / "lib" / path.name
+            assert installed.read_bytes() == path.read_bytes()
+            assert installed.is_symlink() == path.is_symlink()
+            if path.is_symlink():
+                assert installed.readlink() == path.readlink()
+
+        # RISC-V requires TCM even if a caller tries to disable the declaration.
+        # A non-RISC-V provider can explicitly declare an otherwise invisible
+        # dlopen dependency; no DT_NEEDED heuristic may silently drop it.
+        for processor, arguments in (
+                ("riscv64", []),
+                ("riscv64", ["-DSTEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM=OFF"]),
+                ("x86_64", ["-DSTEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM=ON"])):
+            missing_build = root / f"missing-tcm-{processor}-{len(arguments)}"
+            failure = run("cmake", "-S", str(project), "-B", str(missing_build),
+                          f"-DONNXRUNTIME_ROOT={generic_artifact}",
+                          f"-DFIXTURE_TARGET_PROCESSOR={processor}", *arguments, success=False)
+            assert "requires libspine_tcm.so" in failure
+        print("PASS generic non-TCM runtime; RISC-V and declared dynamic TCM requirements enforced")
+
+        generic_artifact.rename(root / "hidden-generic-runtime")
+        generic_relocated = root / "generic-relocated"
+        generic_prefix.rename(generic_relocated)
+        generic_consumer = root / "generic-consumer-test"
+        generic_consumer.mkdir()
+        relocated_consumer(generic_consumer, generic_relocated, generic_artifact)
+        print("PASS relocated generic consumer without TCM or LD_LIBRARY_PATH")
 
         # Remove access to the selected source artifact, move the deployment,
         # then link and run through the real installed package configuration.
         artifact.rename(root / "hidden-runtime")
         relocated = root / "relocated"
         prefix.rename(relocated)
-        consumer = root / "consumer"
-        consumer.mkdir()
-        (consumer / "main.c").write_text(
-            "extern int fixture_backend(void);\n"
-            "int main(void) { return fixture_backend() == 12 ? 0 : 1; }\n")
-        (consumer / "CMakeLists.txt").write_text('''cmake_minimum_required(VERSION 3.16)
-project(consumer LANGUAGES C)
-find_package(stereo_matching CONFIG REQUIRED COMPONENTS external_input)
-add_executable(consumer main.c)
-target_link_libraries(consumer PRIVATE stereo_matching::external_input)
-''')
-        environment = os.environ.copy()
-        environment.pop("LD_LIBRARY_PATH", None)
-        run("cmake", "-S", str(consumer), "-B", str(root / "consumer-build"),
-            f"-DCMAKE_PREFIX_PATH={relocated}", env=environment)
-        run("cmake", "--build", str(root / "consumer-build"), env=environment)
-        run(str(root / "consumer-build/consumer"), env=environment)
-        dynamic = run("readelf", "-d", str(relocated / "lib/liblas2_usb_stereo.so"))
-        assert "$ORIGIN" in dynamic and str(artifact) not in dynamic
+        relocated_consumer(root, relocated, artifact)
         configuration = (relocated / "lib/cmake/stereo_matching/stereo_matchingConfig.cmake").read_text()
         assert str(artifact) not in configuration and str(prefix) not in configuration
         print("PASS four runtime libraries, six relative symlinks, license and deployment SHA manifest")

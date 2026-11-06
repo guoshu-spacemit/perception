@@ -1,54 +1,78 @@
 // Exercise the exact production calibration loader without creating an ORT
-// session, opening a camera, or allocating DMA. Unused demo code is link-pruned.
-#define LAS2_USB_STEREO_NO_MAIN
-#include "../src/usb_mpp_las2_demo.cpp"
+// session, opening a camera, or allocating DMA.
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <filesystem>  // NOLINT(build/c++17): C++17 is the project baseline.
+#include <fstream>
+#include <future>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <system_error>
+#include <vector>
 
-namespace {
-void require_test(bool condition, const char *message) {
+#include "../src/stereo_preprocessing.h"
+
+namespace
+{
+void require_test(bool condition, const char* message)
+{
     if (!condition)
         throw std::runtime_error(message);
 }
 
-struct TemporaryCalibration {
+struct TemporaryCalibration
+{
     std::string directory;
     std::string path;
-    TemporaryCalibration() {
+    TemporaryCalibration()
+    {
         char pattern[] = "/tmp/las2-map-test-XXXXXX";
-        const char *result = mkdtemp(pattern);
+        const char* result = mkdtemp(pattern);
         require_test(result != nullptr, "mkdtemp failed");
         directory = result;
         path = directory + "/calibration.yaml";
     }
-    ~TemporaryCalibration() {
+    ~TemporaryCalibration()
+    {
         std::error_code error;
         std::filesystem::remove(path, error);
         std::filesystem::remove(directory, error);
     }
-    void write(const std::string &contents) {
+    void write(const std::string& contents)
+    {
         std::ofstream file(path, std::ios::binary);
         file << contents;
         require_test(file.good(), "write test calibration");
     }
 };
 
-std::string fixture(const char *distortion, int width, int height, double fx) {
+std::string fixture(const char* distortion, int width, int height, double fx)
+{
     std::ostringstream yaml;
-    for (int camera = 0; camera < 2; ++camera) {
+    for (int camera = 0; camera < 2; ++camera)
+    {
         yaml << "cam" << camera << ":\n"
-             << "  camera_model: pinhole\n  distortion_model: " << distortion << '\n'
-             << "  intrinsics: [" << fx << ", " << fx << ", " << width * .49 << ", " << height * .51
-             << "]\n"
-             << "  distortion_coeffs: [-0.04, 0.003, 0, 0]\n"
-             << "  resolution: [" << width << ", " << height << "]\n";
+                << "  camera_model: pinhole\n  distortion_model: " << distortion << '\n'
+                << "  intrinsics: [" << fx << ", " << fx << ", " << width * .49 << ", " << height * .51
+                << "]\n"
+                << "  distortion_coeffs: [-0.04, 0.003, 0, 0]\n"
+                << "  resolution: [" << width << ", " << height << "]\n";
         if (camera == 1)
             yaml << "  T_cn_cnm1: [[1,0,0,-0.065],[0,1,0,0],[0,0,1,0],[0,0,0,1]]\n";
     }
     return yaml.str();
 }
 
-void cache_tests() {
+void cache_tests()
+{
     TemporaryCalibration file;
-    for (const char *model : {"radtan", "equidistant"}) {
+    for (const char* model : {"radtan", "equidistant"})
+    {
         file.write(fixture(model, 64, 48, 45));
         auto first = load_shared_rectify_maps(file.path, 64, 48, 0);
         auto second = load_shared_rectify_maps(file.path, 64, 48, 0);
@@ -58,11 +82,14 @@ void cache_tests() {
         file.write(fixture(model, 64, 48, 47));
         auto changed = load_shared_rectify_maps(file.path, 64, 48, 0);
         require_test(changed.get() != first.get() && changed->fx != first->fx,
-                     "in-place calibration edit reused stale maps");
+            "in-place calibration edit reused stale maps");
         bool rejected = false;
-        try {
+        try
+        {
             load_shared_rectify_maps(file.path, 65, 48, 0);
-        } catch (const std::runtime_error &) {
+        }
+        catch (const std::runtime_error&)
+        {
             rejected = true;
         }
         require_test(rejected, "wrong dimensions reused cached geometry");
@@ -80,10 +107,12 @@ void cache_tests() {
     const auto gate = begin.get_future().share();
     std::vector<std::future<std::shared_ptr<const RectifyMaps>>> futures;
     for (int index = 0; index < 8; ++index)
-        futures.push_back(std::async(std::launch::async, [&] {
-            gate.wait();
-            return load_shared_rectify_maps(file.path, 64, 48, 0);
-        }));
+        futures.push_back(std::async(std::launch::async,
+            [&]
+            {
+                gate.wait();
+                return load_shared_rectify_maps(file.path, 64, 48, 0);
+            }));
     begin.set_value();
     auto first = futures.front().get();
     for (size_t index = 1; index < futures.size(); ++index)
@@ -91,34 +120,38 @@ void cache_tests() {
     std::cout << "PASS calibration content/alpha/dimensions/lifetime/concurrent cache\n";
 }
 
-void reference(const RectifyMaps &maps, const std::string &mode, const char *path) {
+void reference(const RectifyMaps& maps, const std::string& mode, const char* path)
+{
     const bool write = mode == "--write-reference";
     require_test(write || mode == "--verify-reference", "invalid reference mode");
-    std::fstream file(path,
-                      std::ios::binary | (write ? std::ios::out | std::ios::trunc : std::ios::in));
+    std::fstream file(
+        path, std::ios::binary | (write ? std::ios::out | std::ios::trunc : std::ios::in));
     require_test(file.good(), "reference file open failed");
     std::vector<double> geometry{maps.fx, maps.fy, maps.cx, maps.cy, maps.baseline_m};
-    geometry.insert(geometry.end(), maps.rectified_from_left.begin(),
-                    maps.rectified_from_left.end());
+    geometry.insert(
+        geometry.end(), maps.rectified_from_left.begin(), maps.rectified_from_left.end());
     double maximum = 0;
     auto original_geometry = geometry;
     if (write)
-        file.write(reinterpret_cast<const char *>(geometry.data()), geometry.size() * 8);
+        file.write(reinterpret_cast<const char*>(geometry.data()), geometry.size() * 8);
     else
-        file.read(reinterpret_cast<char *>(geometry.data()), geometry.size() * 8);
+        file.read(reinterpret_cast<char*>(geometry.data()), geometry.size() * 8);
     require_test(file.good(), "reference geometry I/O failed");
     for (size_t n = 0; n < geometry.size(); ++n)
         require_test(std::abs(geometry[n] - original_geometry[n]) <= 1e-9,
-                     "FOV/intrinsics/extrinsics changed");
-    for (const auto *values : {&maps.left_x, &maps.left_y, &maps.right_x, &maps.right_y}) {
+            "FOV/intrinsics/extrinsics changed");
+    for (const auto* values : {&maps.left_x, &maps.left_y, &maps.right_x, &maps.right_y})
+    {
         if (write)
-            file.write(reinterpret_cast<const char *>(values->data()), values->size() * 4);
-        else {
+            file.write(reinterpret_cast<const char*>(values->data()), values->size() * 4);
+        else
+        {
             std::vector<float> expected(values->size());
-            file.read(reinterpret_cast<char *>(expected.data()), expected.size() * 4);
-            for (size_t n = 0; n < expected.size(); ++n) {
+            file.read(reinterpret_cast<char*>(expected.data()), expected.size() * 4);
+            for (size_t n = 0; n < expected.size(); ++n)
+            {
                 require_test(std::isfinite(expected[n]) && std::isfinite((*values)[n]),
-                             "nonfinite production map");
+                    "nonfinite production map");
                 maximum = std::max(maximum, std::abs(double(expected[n]) - (*values)[n]));
             }
         }
@@ -129,13 +162,16 @@ void reference(const RectifyMaps &maps, const std::string &mode, const char *pat
 }
 } // namespace
 
-int main(int argc, char **argv) {
-    try {
+int main(int argc, char** argv)
+{
+    try
+    {
         std::cout << std::unitbuf;
         cache_tests();
         require_test(argc == 1 || argc == 2 || argc == 4,
-                     "usage: [KALIBR [--write-reference|--verify-reference FILE]]");
-        if (argc > 1) {
+            "usage: [KALIBR [--write-reference|--verify-reference FILE]]");
+        if (argc > 1)
+        {
             const auto root = YAML::LoadFile(argv[1]);
             const auto dimensions = yaml_vector(root["cam0"], "resolution", 2);
             const int width = std::lround(dimensions[0]), height = std::lround(dimensions[1]);
@@ -151,14 +187,16 @@ int main(int argc, char **argv) {
                     .count();
             require_test(first.get() == second.get(), "production maps not shared");
             std::cout << "MAP_INIT cold_ms=" << cold_ms << " hit_ms=" << hit_ms
-                      << " shared_bytes=" << first->left_x.size() * sizeof(float) * 4 << '\n';
+                        << " shared_bytes=" << first->left_x.size() * sizeof(float) * 4 << '\n';
             if (argc == 4)
                 reference(*first, argv[2], argv[3]);
         }
         std::cout << "PASS backend=" << (LAS2_HAS_RVV_RECTIFICATION ? "rvv-fp64" : "opencv")
-                  << '\n';
+                    << '\n';
         return 0;
-    } catch (const std::exception &error) {
+    }
+    catch (const std::exception& error)
+    {
         std::cerr << "FAIL: " << error.what() << '\n';
         return 1;
     }

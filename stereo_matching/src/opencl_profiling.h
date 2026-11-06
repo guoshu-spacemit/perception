@@ -1,13 +1,16 @@
-#pragma once
+#ifndef OPENCL_PROFILING_H
+#define OPENCL_PROFILING_H
 
 #include <CL/cl.h>
 #include <limits>
 
-namespace las2::detail {
+namespace las2::detail
+{
 
 // Profiling is optional telemetry, not a condition for using completed GPU
 // output. Keep unavailable samples distinct from a measured zero duration.
-template <typename Query> double opencl_event_ms(cl_event event, Query query) {
+template <typename Query> double opencl_event_ms(cl_event event, Query query)
+{
     const double unavailable = std::numeric_limits<double>::quiet_NaN();
     if (!event)
         return unavailable;
@@ -24,8 +27,11 @@ template <typename Query> double opencl_event_ms(cl_event event, Query query) {
     return static_cast<double>(end - start) / 1.0e6;
 }
 
-inline double opencl_event_ms(cl_event event) {
+inline double opencl_event_ms(cl_event event)
+{
     return opencl_event_ms(event, clGetEventProfilingInfo);
 }
 
 } // namespace las2::detail
+
+#endif // OPENCL_PROFILING_H

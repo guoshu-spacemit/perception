@@ -8,12 +8,43 @@ it does not duplicate the capture implementation or validate the MPP ABI.
 
 import os
 from pathlib import Path
+import re
 import shlex
 import subprocess
 import tempfile
 
 
 COMPONENT = Path(__file__).resolve().parents[1]
+
+CPP_BRACES = re.compile(
+    r'//[^\n]*|/\*.*?\*/|'
+    r'R"(?P<delimiter>[^\s()\\]{0,16})\(.*?\)(?P=delimiter)"|'
+    r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|[{}]',
+    re.DOTALL,
+)
+
+
+def production_class(source):
+    """Extract the exact class body independently of brace placement."""
+    declaration = re.search(r"\bclass\s+DirectV4l2YuyvCapture\s*\{", source)
+    if declaration is None:
+        raise ValueError("production capture class declaration not found")
+    opening = source.index("{", declaration.start())
+    depth = 0
+    for token in CPP_BRACES.finditer(source, opening):
+        if token.group() == "{":
+            depth += 1
+        elif token.group() == "}":
+            depth -= 1
+            if depth == 0:
+                terminator = re.match(r"\s*;", source[token.end():])
+                if terminator is None:
+                    raise ValueError("production capture class terminator not found")
+                return source[
+                    declaration.start():token.end() + terminator.end()
+                ]
+    raise ValueError("production capture class closing brace not found")
+
 
 PREAMBLE = r"""
 #include <fcntl.h>
@@ -61,7 +92,7 @@ struct VideoFrameInfo {
         U32 u32Fd[3];
     } stVFrame;
 };
-struct UsbOptions {
+struct StereoPipelineOptions {
     std::string dev = "/fixture/video";
     int width = 64;
     int height = 48;
@@ -209,7 +240,7 @@ void assert_released() {
 void expect_constructor_failure() {
     bool threw = false;
     try {
-        DirectV4l2YuyvCapture capture(UsbOptions{});
+        DirectV4l2YuyvCapture capture(StereoPipelineOptions{});
     } catch (const std::exception&) {
         threw = true;
     }
@@ -223,7 +254,7 @@ int main() {
     try {
         int acquisition_calls = 0;
         {
-            DirectV4l2YuyvCapture capture(UsbOptions{});
+            DirectV4l2YuyvCapture capture(StereoPipelineOptions{});
             acquisition_calls = mock.calls;
             expect(mock.descriptors.size() == 7 && mock.mappings.size() == 6,
                    "successful constructor did not retain every resource");
@@ -268,7 +299,7 @@ int main() {
             mock.zero_mapping = true;
             mock.fail_stream_off = fail_stream_off;
             {
-                DirectV4l2YuyvCapture capture(UsbOptions{});
+                DirectV4l2YuyvCapture capture(StereoPipelineOptions{});
                 expect(mock.mappings.count(nullptr), "zero-address mapping was not exercised");
             }
             assert_released();
@@ -286,10 +317,8 @@ int main() {
 
 
 def main():
-    source = (COMPONENT / "src/las2_usb_stereo.cpp").read_text()
-    begin = source.index("class DirectV4l2YuyvCapture {")
-    end = source.index("\n};", begin) + len("\n};")
-    capture_class = source[begin:end]
+    source = (COMPONENT / "src/stereo_pipeline.cpp").read_text()
+    capture_class = production_class(source)
     with tempfile.TemporaryDirectory(prefix="las2-capture-cleanup-") as temporary:
         root = Path(temporary)
         fixture = root / "capture_cleanup.cpp"

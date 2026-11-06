@@ -1,13 +1,12 @@
 {
-  "source_revision": "54129d0db11da4a05abc90024e08c30f60dd423f",
-  "public_api_sha256": "f6fbac0c549cd09989122e30726ae69e937890a5a99532b6376661865e355980",
+  "public_api_header": "include/stereo_matching/pipeline.h",
+  "public_api_sha256": "e9dbd5149ca0ec323c77c6bfd476d2e115673061bb77bd1f9bbf186797c2daf9",
   "backend": "ort",
   "runtime": {
     "external_only": true,
     "package_version": "2.0.4",
     "ort_abi": "1.24.2+spacemit.a1",
     "ort_build_commit": "c178f12b2",
-    "source_manifest": "third_party/spacemit-ort.riscv64.2.0.4_yyx/SHA256SUMS",
     "files": {
       "lib/libonnxruntime.so.1.24.2+spacemit.a1": "e887a538b6cce9597b1905034b48f89763dd625b04bcd708ceb4b494df6df1ac",
       "lib/libonnxruntime_providers_shared.so": "62a3d2d9916c20bbe08358e5797c3e8c7ff11c6235728ac396d1d1f315d598de",
@@ -32,7 +31,9 @@
       "include/spine_llm_argparser.h": "23e03d761c961fd20860795aae0e584cc20a0fc3758eeb4b2b70055a14e65a66",
       "include/spine_llm_engine.h": "0fd55646a1b924ff0a908a44a9ad07de669ab962ce225003ed53c44368a43cfa",
       "include/spine_vision_engine.h": "a09e0c78e7e9fb787269490af19a96b21f4e78cb84d929c7d404f9ab539dca77"
-    }
+    },
+    "artifact_root": "ONNXRUNTIME_ROOT",
+    "artifact_manifest": "SHA256SUMS"
   },
   "model": {
     "external_only": true,

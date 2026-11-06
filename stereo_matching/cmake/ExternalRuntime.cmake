@@ -3,16 +3,33 @@
 # without exporting a build-machine path into its CMake package or ELF RPATH.
 option(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME
   "Install the selected external ORT/EP runtime alongside ExternalStereo" ON)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _las2_runtime_processor)
+set(_las2_target_requires_tcm FALSE)
+if(_las2_runtime_processor MATCHES "riscv")
+  set(_las2_target_requires_tcm TRUE)
+endif()
+option(STEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM
+  "Require TCM for the selected runtime, including dlopen dependencies; always required on RISC-V"
+  ${_las2_target_requires_tcm})
 set(STEREO_MATCHING_EXTERNAL_INPUT_MODEL "" CACHE FILEPATH
   "Optional matching ExternalStereo model, installed separately from the tensor model")
 
 if(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME)
   set(_las2_runtime_files)
+  set(_las2_required_runtime_libraries onnxruntime onnxruntime_providers_shared spacemit_ep)
+  if(_las2_target_requires_tcm OR STEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM)
+    list(APPEND _las2_required_runtime_libraries spine_tcm)
+  endif()
+  # Preserve a supplied TCM family even when optional. Its absence is valid on
+  # generic runtimes, but declared dynamic dependencies must remain complete.
   foreach(_las2_runtime_library onnxruntime onnxruntime_providers_shared spacemit_ep spine_tcm)
     file(GLOB _las2_runtime_family LIST_DIRECTORIES FALSE
       "${ONNXRUNTIME_ROOT}/lib/lib${_las2_runtime_library}.so"
       "${ONNXRUNTIME_ROOT}/lib/lib${_las2_runtime_library}.so.*")
     if(NOT _las2_runtime_family)
+      if(NOT _las2_runtime_library IN_LIST _las2_required_runtime_libraries)
+        continue()
+      endif()
       message(FATAL_ERROR
         "ExternalStereo runtime deployment requires lib${_las2_runtime_library}.so* in ONNXRUNTIME_ROOT/lib; "
         "select the complete matched runtime artifact or disable STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME")

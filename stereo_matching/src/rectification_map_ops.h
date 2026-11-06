@@ -1,4 +1,5 @@
-#pragma once
+#ifndef RECTIFICATION_MAP_OPS_H
+#define RECTIFICATION_MAP_OPS_H
 
 #include <algorithm>
 #include <cmath>
@@ -13,9 +14,11 @@
 #define LAS2_HAS_RVV_RECTIFICATION 0
 #endif
 
-namespace las2::detail {
+namespace las2::detail
+{
 
-struct RemapValidity {
+struct RemapValidity
+{
     size_t invalid = 0;
     float min_x = std::numeric_limits<float>::infinity();
     float max_x = -std::numeric_limits<float>::infinity();
@@ -23,18 +26,21 @@ struct RemapValidity {
     float max_y = -std::numeric_limits<float>::infinity();
 };
 
-inline RemapValidity inspect_remap(const cv::Mat &map_x, const cv::Mat &map_y, int width,
-                                   int height) {
+inline RemapValidity inspect_remap(
+    const cv::Mat& map_x, const cv::Mat& map_y, int width, int height)
+{
     CV_Assert(map_x.type() == CV_32FC1 && map_y.type() == CV_32FC1 && map_x.size() == map_y.size());
     RemapValidity result;
     const float max_x = static_cast<float>(width - 1);
     const float max_y = static_cast<float>(height - 1);
-    for (int row = 0; row < map_x.rows; ++row) {
-        const float *px = map_x.ptr<float>(row);
-        const float *py = map_y.ptr<float>(row);
+    for (int row = 0; row < map_x.rows; ++row)
+    {
+        const float* px = map_x.ptr<float>(row);
+        const float* py = map_y.ptr<float>(row);
         int column = 0;
 #if LAS2_HAS_RVV_RECTIFICATION
-        while (column < map_x.cols) {
+        while (column < map_x.cols)
+        {
             const size_t vl = __riscv_vsetvl_e32m4(map_x.cols - column);
             const auto x = __riscv_vle32_v_f32m4(px + column, vl);
             const auto y = __riscv_vle32_v_f32m4(py + column, vl);
@@ -59,10 +65,12 @@ inline RemapValidity inspect_remap(const cv::Mat &map_x, const cv::Mat &map_y, i
             column += static_cast<int>(vl);
         }
 #else
-        for (; column < map_x.cols; ++column) {
+        for (; column < map_x.cols; ++column)
+        {
             const float x = px[column], y = py[column];
             const bool finite = std::isfinite(x) && std::isfinite(y);
-            if (finite) {
+            if (finite)
+            {
                 result.min_x = std::min(result.min_x, x);
                 result.max_x = std::max(result.max_x, x);
                 result.min_y = std::min(result.min_y, y);
@@ -81,73 +89,77 @@ inline RemapValidity inspect_remap(const cv::Mat &map_x, const cv::Mat &map_y, i
 // [-tan(pi/8), tan(pi/8)]. Degree 41 gives a truncation bound < 9e-19 radians;
 // this is NOT a bound on total floating-point rounding error. Tests compare
 // projection coordinates and validity, including all range-reduction boundaries.
-inline vfloat64m2_t atan_radius(vfloat64m2_t radius, size_t vl) {
+inline vfloat64m2_t atan_radius(vfloat64m2_t radius, size_t vl)
+{
     const auto reciprocal = __riscv_vmfgt_vf_f64m2_b32(radius, 1.0, vl);
     const auto safe_radius = __riscv_vfmax_vf_f64m2(radius, 1.0, vl);
-    auto t = __riscv_vmerge_vvm_f64m2(radius, __riscv_vfrdiv_vf_f64m2(safe_radius, 1.0, vl),
-                                      reciprocal, vl);
+    auto t = __riscv_vmerge_vvm_f64m2(
+        radius, __riscv_vfrdiv_vf_f64m2(safe_radius, 1.0, vl), reciprocal, vl);
     const auto shifted = __riscv_vmfgt_vf_f64m2_b32(t, 0.4142135623730950488, vl);
     t = __riscv_vmerge_vvm_f64m2(t,
-                                 __riscv_vfdiv_vv_f64m2(__riscv_vfsub_vf_f64m2(t, 1.0, vl),
-                                                        __riscv_vfadd_vf_f64m2(t, 1.0, vl), vl),
-                                 shifted, vl);
+        __riscv_vfdiv_vv_f64m2(
+            __riscv_vfsub_vf_f64m2(t, 1.0, vl), __riscv_vfadd_vf_f64m2(t, 1.0, vl), vl),
+        shifted, vl);
     const auto square = __riscv_vfmul_vv_f64m2(t, t, vl);
     auto polynomial = __riscv_vfmv_v_f_f64m2(1.0 / 41.0, vl);
-    for (int n = 19; n >= 0; --n) {
+    for (int n = 19; n >= 0; --n)
+    {
         const double coefficient = (n % 2 ? -1.0 : 1.0) / (2 * n + 1);
         polynomial =
             __riscv_vfadd_vf_f64m2(__riscv_vfmul_vv_f64m2(polynomial, square, vl), coefficient, vl);
     }
     auto angle = __riscv_vfmul_vv_f64m2(t, polynomial, vl);
-    angle = __riscv_vmerge_vvm_f64m2(angle, __riscv_vfadd_vf_f64m2(angle, CV_PI / 4.0, vl), shifted,
-                                     vl);
-    return __riscv_vmerge_vvm_f64m2(angle, __riscv_vfrsub_vf_f64m2(angle, CV_PI / 2.0, vl),
-                                    reciprocal, vl);
+    angle = __riscv_vmerge_vvm_f64m2(
+        angle, __riscv_vfadd_vf_f64m2(angle, CV_PI / 4.0, vl), shifted, vl);
+    return __riscv_vmerge_vvm_f64m2(
+        angle, __riscv_vfrsub_vf_f64m2(angle, CV_PI / 2.0, vl), reciprocal, vl);
 }
 #endif
 
 // Same double-precision equidistant projection as OpenCV fisheye, emitting
 // float32 backward maps. Small matrix decomposition remains in OpenCV.
-inline void fisheye_maps(const cv::Mat &k, const cv::Mat &d, const cv::Mat &r, const cv::Mat &p,
-                         cv::Size size, cv::Mat &map_x, cv::Mat &map_y) {
+inline void fisheye_maps(const cv::Mat& k, const cv::Mat& d, const cv::Mat& r, const cv::Mat& p,
+    cv::Size size, cv::Mat& map_x, cv::Mat& map_y)
+{
 #if LAS2_HAS_RVV_RECTIFICATION
     CV_Assert(k.type() == CV_64FC1 && k.rows == 3 && k.cols == 3 && d.type() == CV_64FC1 &&
-              d.total() == 4 && d.isContinuous() && r.type() == CV_64FC1 && r.rows == 3 &&
-              r.cols == 3 && p.type() == CV_64FC1 && p.rows == 3 && p.cols >= 3);
+        d.total() == 4 && d.isContinuous() && r.type() == CV_64FC1 && r.rows == 3 && r.cols == 3 &&
+        p.type() == CV_64FC1 && p.rows == 3 && p.cols >= 3);
     const cv::Mat transform = (p.colRange(0, 3) * r).inv(cv::DECOMP_SVD);
     const cv::Matx33d inverse(transform);
-    const double *coeff = d.ptr<double>();
+    const double* coeff = d.ptr<double>();
     const double fx = k.at<double>(0, 0), fy = k.at<double>(1, 1);
     const double cx = k.at<double>(0, 2), cy = k.at<double>(1, 2);
     map_x.create(size, CV_32FC1);
     map_y.create(size, CV_32FC1);
-    for (int row = 0; row < size.height; ++row) {
-        float *px = map_x.ptr<float>(row);
-        float *py = map_y.ptr<float>(row);
+    for (int row = 0; row < size.height; ++row)
+    {
+        float* px = map_x.ptr<float>(row);
+        float* py = map_y.ptr<float>(row);
         const double origin_x = row * inverse(0, 1) + inverse(0, 2);
         const double origin_y = row * inverse(1, 1) + inverse(1, 2);
         const double origin_w = row * inverse(2, 1) + inverse(2, 2);
-        for (int column = 0; column < size.width;) {
+        for (int column = 0; column < size.width;)
+        {
             const size_t vl = __riscv_vsetvl_e64m2(size.width - column);
             const auto index = __riscv_vfcvt_f_xu_v_f64m2(
                 __riscv_vadd_vx_u64m2(__riscv_vid_v_u64m2(vl), column, vl), vl);
-            const auto xx = __riscv_vfadd_vf_f64m2(__riscv_vfmul_vf_f64m2(index, inverse(0, 0), vl),
-                                                   origin_x, vl);
-            const auto yy = __riscv_vfadd_vf_f64m2(__riscv_vfmul_vf_f64m2(index, inverse(1, 0), vl),
-                                                   origin_y, vl);
-            const auto ww = __riscv_vfadd_vf_f64m2(__riscv_vfmul_vf_f64m2(index, inverse(2, 0), vl),
-                                                   origin_w, vl);
+            const auto xx = __riscv_vfadd_vf_f64m2(
+                __riscv_vfmul_vf_f64m2(index, inverse(0, 0), vl), origin_x, vl);
+            const auto yy = __riscv_vfadd_vf_f64m2(
+                __riscv_vfmul_vf_f64m2(index, inverse(1, 0), vl), origin_y, vl);
+            const auto ww = __riscv_vfadd_vf_f64m2(
+                __riscv_vfmul_vf_f64m2(index, inverse(2, 0), vl), origin_w, vl);
             const double infinity = std::numeric_limits<double>::infinity();
-            const auto invalid_u =
-                __riscv_vfmerge_vfm_f64m2(__riscv_vfmv_v_f_f64m2(infinity, vl), -infinity,
-                                          __riscv_vmfgt_vf_f64m2_b32(xx, 0, vl), vl);
-            const auto invalid_v =
-                __riscv_vfmerge_vfm_f64m2(__riscv_vfmv_v_f_f64m2(infinity, vl), -infinity,
-                                          __riscv_vmfgt_vf_f64m2_b32(yy, 0, vl), vl);
+            const auto invalid_u = __riscv_vfmerge_vfm_f64m2(__riscv_vfmv_v_f_f64m2(infinity, vl),
+                -infinity, __riscv_vmfgt_vf_f64m2_b32(xx, 0, vl), vl);
+            const auto invalid_v = __riscv_vfmerge_vfm_f64m2(__riscv_vfmv_v_f_f64m2(infinity, vl),
+                -infinity, __riscv_vmfgt_vf_f64m2_b32(yy, 0, vl), vl);
             const auto behind = __riscv_vmfle_vf_f64m2_b32(ww, 0, vl);
             // Match OpenCV's early exit for rays behind the camera. Avoid
             // paying for division/atan when an entire vector is invalid.
-            if (__riscv_vcpop_m_b32(behind, vl) == vl) {
+            if (__riscv_vcpop_m_b32(behind, vl) == vl)
+            {
                 __riscv_vse32_v_f32m1(px + column, __riscv_vfncvt_f_f_w_f32m1(invalid_u, vl), vl);
                 __riscv_vse32_v_f32m1(py + column, __riscv_vfncvt_f_f_w_f32m1(invalid_v, vl), vl);
                 column += static_cast<int>(vl);
@@ -157,8 +169,8 @@ inline void fisheye_maps(const cv::Mat &k, const cv::Mat &d, const cv::Mat &r, c
             const auto y = __riscv_vfdiv_vv_f64m2(yy, ww, vl);
             const auto radius =
                 __riscv_vfsqrt_v_f64m2(__riscv_vfadd_vv_f64m2(__riscv_vfmul_vv_f64m2(x, x, vl),
-                                                              __riscv_vfmul_vv_f64m2(y, y, vl), vl),
-                                       vl);
+                                            __riscv_vfmul_vv_f64m2(y, y, vl), vl),
+                    vl);
             const auto theta = atan_radius(radius, vl);
             const auto t2 = __riscv_vfmul_vv_f64m2(theta, theta, vl);
             const auto t4 = __riscv_vfmul_vv_f64m2(t2, t2, vl);
@@ -190,3 +202,5 @@ inline void fisheye_maps(const cv::Mat &k, const cv::Mat &d, const cv::Mat &r, c
 }
 
 } // namespace las2::detail
+
+#endif // RECTIFICATION_MAP_OPS_H

@@ -7,13 +7,35 @@ exercise ownership, copy sizes, cache keys, and exception exits, not GPU math.
 
 from pathlib import Path
 import os
+import re
 import shlex
 import subprocess
 import tempfile
 
 
-def production_function(source, start, end):
-    return source[source.index(start):source.index(end, source.index(start))]
+CPP_BRACES = re.compile(
+    r'//[^\n]*|/\*.*?\*/|'
+    r'R"(?P<delimiter>[^\s()\\]{0,16})\(.*?\)(?P=delimiter)"|'
+    r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|[{}]',
+    re.DOTALL,
+)
+
+
+def production_function(source, declaration_pattern):
+    """Extract one actual function, ignoring braces in comments and literals."""
+    declaration = re.search(declaration_pattern, source)
+    if declaration is None:
+        raise ValueError("production function declaration not found")
+    opening = source.index("{", declaration.end())
+    depth = 0
+    for token in CPP_BRACES.finditer(source, opening):
+        if token.group() == "{":
+            depth += 1
+        elif token.group() == "}":
+            depth -= 1
+            if depth == 0:
+                return source[declaration.start():token.end()]
+    raise ValueError("production function closing brace not found")
 
 
 HARNESS = r"""
@@ -87,12 +109,12 @@ struct VideoFrameInfo {
     } stVdecFrameInfo;
     struct { U32 u32PlaneNum = 0, u32PlaneStride[2]{}, u32TotalSize = 0; } stVFrame;
 };
-struct UsbOptions { int width = 4, height = 2; };
-struct UsbSlot {
+struct StereoPipelineOptions { int width = 4, height = 2; };
+struct StereoPipelineSlot {
     cl_mem cl_left_tensor{}, cl_right_tensor{}, cl_left_preview{}, cl_right_preview{};
     std::unique_ptr<DmaBuffer> left_preview_dma;
 };
-struct UsbFrame {
+struct PreprocessedStereoFrame {
     std::vector<std::uint8_t> left_xrgb;
     int image_w{}, image_h{}, depth_w{}, depth_h{}, pad_left{}, pad_top{}, dma_fd{};
     double opencl_ms{};
@@ -114,7 +136,7 @@ struct FakeCl {
         releases += imported_buffers.erase(fd);
     }
     double run(cl_mem input, cl_mem, cl_mem, cl_mem, cl_mem,
-               const VideoFrameInfo& frame, const UsbOptions&, int, int, bool,
+               const VideoFrameInfo& frame, const StereoPipelineOptions&, int, int, bool,
                int, int, int, int) {
         if (std::exchange(fail_run, false)) throw std::runtime_error("injected run failure");
         const auto required = std::size_t(frame.stVFrame.u32PlaneStride[0]) *
@@ -128,13 +150,13 @@ struct FakeCl {
 };
 struct Las2Handle {
     bool started = true, produce_rgb888 = false, nhwc = false;
-    UsbOptions opt;
+    StereoPipelineOptions opt;
     int model_w = 4, model_h = 2;
     void* allocator = nullptr;
     std::unique_ptr<DmaBuffer> external_input_dma;
     std::unique_ptr<FakeCl> cl = std::make_unique<FakeCl>();
-    std::vector<std::unique_ptr<UsbSlot>> slots;
-    Las2Handle() { slots.push_back(std::make_unique<UsbSlot>()); }
+    std::vector<std::unique_ptr<StereoPipelineSlot>> slots;
+    Las2Handle() { slots.push_back(std::make_unique<StereoPipelineSlot>()); }
 };
 namespace las2 {
 struct Nv12DmaFrame {
@@ -154,7 +176,7 @@ public:
     bool warmup(int);
 };
 }
-void infer_external_frame(Las2Handle*, UsbSlot&, UsbFrame&&, int, las2::Frame*) {}
+void infer_external_frame(Las2Handle*, StereoPipelineSlot&, PreprocessedStereoFrame&&, int, las2::Frame*) {}
 
 // PRODUCTION_FUNCTIONS
 
@@ -249,14 +271,17 @@ int main() {
 
 def main():
     source = (Path(__file__).resolve().parents[1] /
-              "src/las2_usb_stereo.cpp").read_text()
+              "src/stereo_pipeline.cpp").read_text()
     functions = [
-        production_function(source, "UsbFrame preprocess_external_nv12(",
-                            "\nvoid infer_external_frame("),
-        production_function(source, "bool las2::ExternalStereo::process(",
-                            "\ndouble las2::ExternalStereo::last_opencl_ms("),
-        production_function(source, "bool las2::ExternalStereo::warmup(",
-                            "\nbool las2::ExternalStereo::render_nv12_preview("),
+        production_function(
+            source, r"\bPreprocessedStereoFrame\s+preprocess_external_nv12\s*\("
+        ),
+        production_function(
+            source, r"\bbool\s+las2::ExternalStereo::process\s*\("
+        ),
+        production_function(
+            source, r"\bbool\s+las2::ExternalStereo::warmup\s*\("
+        ),
     ]
     with tempfile.TemporaryDirectory(prefix="las2-warmup-test-") as directory:
         temporary = Path(directory)

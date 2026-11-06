@@ -1,36 +1,41 @@
-#ifndef LAS2_USB_STEREO_H
-#define LAS2_USB_STEREO_H
+#ifndef PIPELINE_H
+#define PIPELINE_H
 
 #include <array>
 #include <cstdint>
 #include <memory>
 
-namespace las2 {
+namespace las2
+{
 
-struct RgbImage {
+struct RgbImage
+{
     const std::uint8_t* data = nullptr;
     int width = 0;
     int height = 0;
     int stride = 0;
 };
 
-struct DepthImage {
+struct DepthImage
+{
     const float* data = nullptr;
     int width = 0;
     int height = 0;
     int stride = 0;
 };
 
-struct DisparityImage {
+struct DisparityImage
+{
     const float* data = nullptr;
     int width = 0;
     int height = 0;
     int stride = 0;
 };
 
-struct Frame {
+struct Frame
+{
     /* Engine-owned views expire at the next inference or shutdown.
-       infer_prepared() depth/RGB views instead belong to its caller. */
+        infer_prepared() depth/RGB views instead belong to its caller. */
     RgbImage rgb;
     DisparityImage disparity;
     DepthImage depth;
@@ -43,7 +48,8 @@ struct Frame {
 // Calibration of Frame::depth.  The image geometry is the LAS2 model output
 // geometry, including letterbox padding.  left_from_depth transforms points
 // from the rectified depth camera into the original cam0 (VIO rig) frame.
-struct DepthCameraCalibration {
+struct DepthCameraCalibration
+{
     int width = 0;
     int height = 0;
     double fx = 0.0;
@@ -51,16 +57,14 @@ struct DepthCameraCalibration {
     double cx = 0.0;
     double cy = 0.0;
     std::array<double, 16> left_from_depth{
-        1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0};
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0};
 };
 
 // Caller-owned NV12 DMA-BUF. The descriptor remains valid only for the
 // duration of process()/prepare(). The external path copies into one reusable
 // DMA buffer to avoid transient-import allocation retention on K3 PowerVR.
-struct Nv12DmaFrame {
+struct Nv12DmaFrame
+{
     int dma_fd = -1;
     int width = 0;
     int height = 0;
@@ -74,7 +78,8 @@ struct Nv12DmaFrame {
 // Geometry of a side-by-side NV12 frame supplied to ExternalStereo. Defaults
 // preserve the USB stereo camera layout used by existing callers. Setting
 // use_remap=false is appropriate for an already-rectified stereo dataset.
-struct ExternalStereoInputConfig {
+struct ExternalStereoInputConfig
+{
     int frame_width = 4000;
     int frame_height = 1200;
     int crop_x = 160;
@@ -103,7 +108,8 @@ struct ExternalStereoInputConfig {
 
 // Caller-owned NV12 DMA-BUF used for the optional display preview. The output
 // is the rectified left image followed by colorized depth, side by side.
-struct Nv12PreviewTarget {
+struct Nv12PreviewTarget
+{
     int dma_fd = -1;
     int width = 0;
     int height = 0;
@@ -114,9 +120,14 @@ struct Nv12PreviewTarget {
     float depth_max_m = 3.0F;
 };
 
-enum class PreviewMode { Depth, Disparity };
+enum class PreviewMode
+{
+    Depth,
+    Disparity
+};
 
-class Camera {
+class Camera
+{
 public:
     Camera();
     ~Camera();
@@ -124,19 +135,12 @@ public:
     Camera(const Camera&) = delete;
     Camera& operator=(const Camera&) = delete;
 
-    bool initialize(const char* usb_device,
-                    const char* calibration_yaml,
-                    int core_count,
-                    const char* core_affinity,
-                    const char* model_path);
+    bool initialize(const char* usb_device, const char* calibration_yaml, int core_count,
+        const char* core_affinity, const char* model_path);
     /* Uses consecutive cores starting at CPU 8. */
-    bool initialize(const char* usb_device,
-                    const char* calibration_yaml,
-                    int core_count,
-                    const char* model_path);
-    bool initialize(const char* usb_device,
-                    const char* calibration_yaml,
-                    const char* model_path);
+    bool initialize(const char* usb_device, const char* calibration_yaml, int core_count,
+        const char* model_path);
+    bool initialize(const char* usb_device, const char* calibration_yaml, const char* model_path);
     /* Runs one inference on the latest frame prepared by the capture pipeline. */
     bool get_frame(Frame& frame, int timeout_ms = -1);
     void shutdown();
@@ -153,15 +157,16 @@ private:
 // DMA-BUF directly to LAS2.
 // A bounded prepared-slot lease. Releasing this object recycles its slot;
 // it retains its owning pipeline even if ExternalStereo is shut down.
-class PreparedStereoFrame {
-   public:
+class PreparedStereoFrame
+{
+public:
     PreparedStereoFrame();
     ~PreparedStereoFrame();
     PreparedStereoFrame(PreparedStereoFrame&&) noexcept;
     PreparedStereoFrame& operator=(PreparedStereoFrame&&) noexcept;
     explicit operator bool() const noexcept;
 
-   private:
+private:
     friend class ExternalStereo;
     struct Impl;
     std::unique_ptr<Impl> impl_;
@@ -170,7 +175,8 @@ class PreparedStereoFrame {
 // Borrowed, caller-owned output buffers. Capacity/stride must cover every row.
 // Depth is written directly on the CPU with DMA cache synchronization; RGB
 // is packed on the CPU from the GPU-rectified XRGB slot. Buffers remain caller-owned.
-struct StereoOutputTarget {
+struct StereoOutputTarget
+{
     int depth_fd = -1, rgb_fd = -1;
     float* depth_data = nullptr;
     std::uint8_t* rgb_data = nullptr;
@@ -178,7 +184,8 @@ struct StereoOutputTarget {
     int depth_stride = 0, rgb_stride = 0;
 };
 
-class ExternalStereo {
+class ExternalStereo
+{
 public:
     ExternalStereo();
     ~ExternalStereo();
@@ -186,21 +193,13 @@ public:
     ExternalStereo(const ExternalStereo&) = delete;
     ExternalStereo& operator=(const ExternalStereo&) = delete;
 
-    bool initialize(const char* calibration_yaml,
-                    int core_count,
-                    const char* core_affinity,
-                    const char* model_path);
-    bool initialize(const char* calibration_yaml,
-                    int core_count,
-                    int threads_per_instance,
-                    const char* core_affinity,
-                    const char* model_path);
-    bool initialize(const char* calibration_yaml,
-                    int core_count,
-                    int threads_per_instance,
-                    const char* core_affinity,
-                    const char* model_path,
-                    const ExternalStereoInputConfig& input_config);
+    bool initialize(const char* calibration_yaml, int core_count, const char* core_affinity,
+        const char* model_path);
+    bool initialize(const char* calibration_yaml, int core_count, int threads_per_instance,
+        const char* core_affinity, const char* model_path);
+    bool initialize(const char* calibration_yaml, int core_count, int threads_per_instance,
+        const char* core_affinity, const char* model_path,
+        const ExternalStereoInputConfig& input_config);
     // Exercise preprocessing, inference, and output conversion using an
     // internally allocated neutral NV12 DMA-BUF. This removes first-use
     // latency before a caller advertises pipeline readiness.
@@ -221,8 +220,8 @@ public:
     // Same DMA output, selectable color range (meters or model-output pixels).
     // Invalid samples are black. Depth clips outside the range; disparity
     // saturates to the endpoint colors. The original overload remains depth-only.
-    bool render_nv12_preview(const Nv12PreviewTarget& target, PreviewMode mode, float minimum,
-                             float maximum);
+    bool render_nv12_preview(
+        const Nv12PreviewTarget& target, PreviewMode mode, float minimum, float maximum);
     bool depth_camera_calibration(DepthCameraCalibration& output) const;
     void shutdown();
     const char* last_error() const;
@@ -232,6 +231,6 @@ private:
     Impl* impl_;
 };
 
-}  // namespace las2
+} // namespace las2
 
-#endif
+#endif // PIPELINE_H

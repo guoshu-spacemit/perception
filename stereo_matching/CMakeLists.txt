@@ -44,8 +44,7 @@ elseif(STEREO_MATCHING_EXTERNAL_INPUT_LIBRARY)
     message(FATAL_ERROR "STEREO_MATCHING_EXTERNAL_INPUT_LIBRARY does not exist")
   endif()
   set(STEREO_MATCHING_HAS_EXTERNAL_INPUT TRUE)
-  install(FILES "${STEREO_MATCHING_EXTERNAL_INPUT_LIBRARY}"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR} RENAME liblas2_usb_stereo.so)
+  include(cmake/PrebuiltExternalInput.cmake)
 endif()
 if(STEREO_MATCHING_BUILD_TESTS)
   include(cmake/ExternalInputTests.cmake)
@@ -53,14 +52,14 @@ endif()
 if(STEREO_MATCHING_BUILD_LIFECYCLE_TESTS)
   enable_testing()
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
-  foreach(probe capture_cleanup warmup_lifecycle)
+  foreach(probe capture_cleanup warmup_lifecycle dma_buffer_cleanup)
     add_test(NAME ${probe}
       COMMAND "${CMAKE_COMMAND}" -E env "CXX=${CMAKE_CXX_COMPILER}"
         "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_${probe}.py")
   endforeach()
-  add_test(NAME source_provenance
-    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_source_provenance.py")
-  set_tests_properties(capture_cleanup warmup_lifecycle source_provenance
+  add_test(NAME sdk_metadata
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sdk_metadata.py")
+  set_tests_properties(capture_cleanup warmup_lifecycle dma_buffer_cleanup sdk_metadata
     PROPERTIES LABELS "cpu;lifecycle" TIMEOUT 120)
 endif()
 configure_package_config_file(cmake/stereo_matchingConfig.cmake.in
