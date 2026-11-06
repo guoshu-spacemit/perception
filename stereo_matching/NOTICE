@@ -1,0 +1,71 @@
+Stereo Matching / LAS2 来源说明
+================================
+
+1. 原始算法、作者与许可证
+
+Lite Any Stereo（LAS）系列的官方算法仓库：
+  https://github.com/TomTomTommi/LiteAnyStereo
+
+LAS2 算法论文：
+  Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching
+  Junpeng Jing, Ronglai Zuo, Zhelun Shen, Shangchen Zhou,
+  Rolandos Alexandros Potamias, Stefanos Zafeiriou,
+  Krystian Mikolajczyk, Jiankang Deng
+  arXiv:2606.24457, 2026
+  https://arxiv.org/abs/2606.24457
+
+官方算法仓库的 MIT 许可证保留以下原始版权声明：
+  Copyright (c) 2025 Junpeng Jing
+
+原始许可证全文位于：
+  licenses/LiteAnyStereo-MIT.txt
+
+论文引用采用官方仓库公布的信息：
+
+@article{jing2026litestereov2,
+  title={Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching},
+  author={Junpeng Jing and Ronglai Zuo and Zhelun Shen and Shangchen Zhou and Rolandos Alexandros Potamias and Stefanos Zafeiriou and Krystian Mikolajczyk and Jiankang Deng},
+  year={2026},
+  eprint={2606.24457},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2606.24457}
+}
+
+2. SpacemiT SDK 适配
+
+SpacemiT Robot Team 维护本目录面向 K3 的 C++ SDK 适配，包括外部 NV12
+输入、标定校正、DMA-BUF 预处理、ORT/EP 推理接入、深度及 RGB 输出，
+以及 Robot SDK 的构建、安装导出和资源生命周期验证。
+
+算法上游提供 LAS2 模型及官方参考实现；本目录的 C++ 平台适配与其
+分别记录，不能视为官方仓库的逐字节源码快照。上游与适配说明见
+UPSTREAM.json。
+
+3. 第三方 dmabufheap
+
+thirdparty/dmabufheap 保留以下原始版权声明：
+  Copyright (C) 2020 The Android Open Source Project
+
+上游项目：
+  https://android.googlesource.com/platform/system/memory/libdmabufheap/
+
+该组件的 Apache License 2.0 全文位于：
+  thirdparty/dmabufheap/LICENSE
+
+源码快照说明及文件范围见：
+  thirdparty/dmabufheap/README.vendor.md
+
+此处的 AOSP 署名及 Apache-2.0 许可说明对应 dmabufheap 组件。
+
+4. 外部运行库与模型
+
+配套的 SpacemiT ONNX Runtime / EP、TCM 运行库和 ExternalStereo FP16
+模型作为外部构建、部署工件提供；版本、接口及哈希见
+RUNTIME_CONTRACT.json。
+
+外部运行工件的许可文件随所选工件保留。启用运行库安装时，构建规则
+会将所提供的运行库 LICENSE 安装为：
+  share/stereo_matching/licenses/external-ort-LICENSE
+
+各组件的版权及许可信息以其原始文件和随附文档为准。

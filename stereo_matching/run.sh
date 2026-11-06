@@ -17,7 +17,8 @@ if [[ ! -s "${model}" || -z "${left}" || -z "${right}" ]]; then
     exit 2
 fi
 
-cmake -S "${project_dir}" -B "${build_dir}" -DCMAKE_BUILD_TYPE=Release
+cmake -S "${project_dir}" -B "${build_dir}" -DCMAKE_BUILD_TYPE=Release \
+    -DSTEREO_MATCHING_BUILD_DEMO=ON
 cmake --build "${build_dir}" -j"$(nproc)"
 
 exec taskset -c 0-7 "${build_dir}/stereo_matching_demo" \

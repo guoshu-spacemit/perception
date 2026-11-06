@@ -1,0 +1,20 @@
+@PACKAGE_INIT@
+
+if(NOT TARGET stereo_matching::stereo_matching)
+  add_library(stereo_matching::stereo_matching SHARED IMPORTED)
+  set_target_properties(stereo_matching::stereo_matching PROPERTIES
+    IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/libstereo_matching.so"
+    INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@")
+endif()
+set(stereo_matching_external_input_FOUND @STEREO_MATCHING_HAS_EXTERNAL_INPUT@)
+if(stereo_matching_external_input_FOUND AND NOT TARGET stereo_matching::external_input)
+  add_library(stereo_matching::external_input SHARED IMPORTED)
+  set_target_properties(stereo_matching::external_input PROPERTIES
+    IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/libstereo_matching_pipeline.so"
+    INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@")
+endif()
+if("external_input" IN_LIST stereo_matching_FIND_COMPONENTS AND NOT stereo_matching_external_input_FOUND)
+  set(stereo_matching_NOT_FOUND_MESSAGE
+    "The NV12 ExternalStereo backend is not installed. Build this package with STEREO_MATCHING_BUILD_EXTERNAL_INPUT=ON and an external matched ONNXRUNTIME_ROOT, or explicitly select a matching prebuilt backend. The tensor-only library does not replace rectification/depth/RGB processing.")
+endif()
+check_required_components(stereo_matching)
