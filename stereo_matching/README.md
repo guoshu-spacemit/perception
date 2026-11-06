@@ -87,7 +87,8 @@ K3，`384×288`，预热 10 次，纯推理：
 `find_package(stereo_matching CONFIG REQUIRED COMPONENTS external_input)`。
 `include/las2_usb_stereo.h` 与原应用交付头文件一致。`src/` 现包含从
 LAS2 SDK `54129d0db11da4a05abc90024e08c30f60dd423f` 迁入的 ExternalStereo
-源码，文件来源及 SHA-256 见 `SOURCE_PROVENANCE.json`。
+源码，原始文件来源及 SHA-256 见 `SOURCE_PROVENANCE.json`；迁入后的修复
+另记于 `local_modifications`，保留上游哈希并记录当前文件哈希。
 直接来源、第三方署名和外部工件说明见 [NOTICE](NOTICE)。仅编译
 `src/las2_usb_stereo.cpp`，其余两个 `.cpp` 由该实现包含。
 
@@ -147,6 +148,20 @@ ExternalStereo 不导入或传输 VB token，也不链接 MPP 运行库；相机
 的 MPP ABI 和整条 DMA-BUF 路径仍需板端联调。
 
 ### 回归检查
+
+只测试资源生命周期时，在开发主机执行：
+
+```bash
+cmake -S . -B build-lifecycle -DSTEREO_MATCHING_BUILD_LIFECYCLE_TESTS=ON
+ctest --test-dir build-lifecycle -L lifecycle --output-on-failure
+```
+
+该检查需要 Python 3 和 C++17 编译器，不需要 OpenCL、ORT 或相机。测试从
+生产文件提取实际捕获类及预处理、process、warmup 函数进行编译，用系统调用
+和 DMA/OpenCL 替身注入失败。覆盖部分 V4L2 初始化失败的 fd/mmap 回收，以及
+预热后接收不同对齐步长、重复预热和失败退出时的私有输入/导入缓存生命周期。
+预热的紧凑 NV12 布局不再约束真实帧；已建立的真实流布局在预热前后保持。
+这些替身验证资源所有权和布局控制流，不验证 MPP ABI、驱动或 GPU 数值。
 
 主机可运行 `python3 tests/test_runtime_packaging.py`，用临时 ELF 库验证
 运行库/链接/许可证/SHA 安装、模型隔离，以及移动安装前缀后的 consumer

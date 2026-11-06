@@ -92,5 +92,19 @@
       "sha256": "282841efa9ac96a45e38db4c6d0a4b6e9af5fa775980c46e9c8c4dfa41d41e96"
     }
   },
-  "private_runtime_and_models": "Not included; supplied through ONNXRUNTIME_ROOT and runtime model configuration."
+  "private_runtime_and_models": "Not included; supplied through ONNXRUNTIME_ROOT and runtime model configuration.",
+  "hash_semantics": "public_header_sha256 and files.*.sha256 identify the unchanged original migration inputs. For a locally modified file, validate its current bytes against local_modifications.*.current_sha256 instead; the original source hash remains preserved above.",
+  "local_modifications": {
+    "src/las2_usb_stereo.cpp": {
+      "current_sha256": "8a4fe8ce13803139f72e8ef5a693d27d7aad97e88642cb2eed9ac76767bca51f",
+      "changes": [
+        "Reclaim partially initialized V4L2 descriptors and mappings when the capture constructor throws.",
+        "Isolate warmup's compact NV12 private input and release its actual OpenCL import before closing its fd; restore an existing live input unchanged."
+      ],
+      "regression_tests": [
+        "tests/test_capture_cleanup.py",
+        "tests/test_warmup_lifecycle.py"
+      ]
+    }
+  }
 }

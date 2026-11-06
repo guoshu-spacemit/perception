@@ -35,6 +35,21 @@ std::mutex g_external_gpu_mutex;
 class DirectV4l2YuyvCapture {
 public:
     explicit DirectV4l2YuyvCapture(const UsbOptions& opt) {
+        try {
+            initialize(opt);
+        } catch (...) {
+            cleanup();
+            throw;
+        }
+    }
+
+    ~DirectV4l2YuyvCapture() noexcept { cleanup(); }
+
+    DirectV4l2YuyvCapture(const DirectV4l2YuyvCapture&) = delete;
+    DirectV4l2YuyvCapture& operator=(const DirectV4l2YuyvCapture&) = delete;
+
+private:
+    void initialize(const UsbOptions& opt) {
         fd_ = open(opt.dev.c_str(), O_RDWR | O_CLOEXEC | O_NONBLOCK);
         if (fd_ < 0) fail("open " + opt.dev);
 
@@ -100,18 +115,30 @@ public:
                     opt.dev.c_str(), width_, height_, opt.fps, buffers_.size());
     }
 
-    ~DirectV4l2YuyvCapture() {
+    void cleanup() noexcept {
         if (streaming_) {
             v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
             ioctl(fd_, VIDIOC_STREAMOFF, &type);
+            streaming_ = false;
         }
         for (auto& buffer : buffers_) {
-            if (buffer.dma_fd >= 0) close(buffer.dma_fd);
-            if (buffer.map && buffer.map != MAP_FAILED) munmap(buffer.map, buffer.size);
+            if (buffer.dma_fd >= 0) {
+                close(buffer.dma_fd);
+                buffer.dma_fd = -1;
+            }
+            if (buffer.map != MAP_FAILED) {
+                munmap(buffer.map, buffer.size);
+                buffer.map = MAP_FAILED;
+            }
         }
-        if (fd_ >= 0) close(fd_);
+        buffers_.clear();
+        if (fd_ >= 0) {
+            close(fd_);
+            fd_ = -1;
+        }
     }
 
+public:
     bool get_frame(VideoFrameInfo& frame, int& dma_fd, double& capture_ms) {
         const auto start = std::chrono::steady_clock::now();
         pollfd descriptor{fd_, POLLIN, 0};
@@ -150,7 +177,7 @@ public:
 
 private:
     struct Buffer {
-        void* map = nullptr;
+        void* map = MAP_FAILED;
         size_t size = 0;
         int dma_fd = -1;
     };
@@ -1199,10 +1226,29 @@ bool las2::ExternalStereo::warmup(int iterations) {
     const int height = handle->opt.height;
     const std::size_t y_size = static_cast<std::size_t>(width) * height;
     const std::size_t total_size = y_size + y_size / 2U;
-    int input_fd = -1;
     try {
         DmaBuffer input(handle->allocator, total_size);
-        input_fd = input.fd();
+        // Synthetic frames have compact strides, which need not match the
+        // producer's aligned layout. Keep their private copy/import separate
+        // from the real stream and restore an existing live buffer unchanged.
+        struct ScopedWarmupInput {
+            explicit ScopedWarmupInput(Las2Handle* pipeline) : handle(pipeline) {
+                std::lock_guard<std::mutex> gpu_lock(g_external_gpu_mutex);
+                previous = std::move(handle->external_input_dma);
+            }
+            ~ScopedWarmupInput() {
+                std::lock_guard<std::mutex> gpu_lock(g_external_gpu_mutex);
+                if (handle->external_input_dma) {
+                    // The cache owns an import of the private copy, never of
+                    // input.fd(). Release it before closing/reusing its fd.
+                    handle->cl->release_input_dmabuf_cached(handle->external_input_dma->fd());
+                    handle->external_input_dma.reset();
+                }
+                handle->external_input_dma = std::move(previous);
+            }
+            Las2Handle* handle;
+            std::unique_ptr<DmaBuffer> previous;
+        } warmup_input(handle);
         input.sync_start(kSyncWrite);
         std::memset(input.data(), 128, total_size);
         input.sync_end(kSyncWrite);
@@ -1218,17 +1264,12 @@ bool las2::ExternalStereo::warmup(int iterations) {
         for (int iteration = 0; iteration < iterations; ++iteration) {
             Frame output;
             if (!process(frame, output)) {
-                handle->cl->release_input_dmabuf_cached(input_fd);
                 return false;
             }
         }
-        handle->cl->release_input_dmabuf_cached(input_fd);
         impl_->error.clear();
         return true;
     } catch (const std::exception& error) {
-        if (input_fd >= 0 && handle->cl) {
-            handle->cl->release_input_dmabuf_cached(input_fd);
-        }
         impl_->error = error.what();
         return false;
     }

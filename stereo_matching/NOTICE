@@ -10,6 +10,8 @@ Stereo Matching / LAS2 来源说明
 原路径包括 cpp/include/las2_usb_stereo.h、cpp/src/ 和 cpp/tests/。
 迁入后的文件路径、原路径和 SHA-256 记录在 SOURCE_PROVENANCE.json；
 公开接口的哈希也保存在该清单中。
+迁入后的资源生命周期修复另列于清单的 local_modifications；原始来源
+哈希保持不变，当前文件哈希单独记录，不将修改后的实现冒充原始快照。
 
 本次整合主要涉及 Robot SDK 的 CMake 接入、MPP 头文件复用、安装导出、
 配套运行工件安装及验证。SpacemiT Robot Team 是本组件的集成维护者。
