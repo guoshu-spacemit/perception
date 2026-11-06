@@ -147,6 +147,24 @@ cmake --build build -j8
 - `imagech0.jpg` 至 `imagech3.jpg`：四路 1280x720 鱼眼图片。
 - 每个 Apriltag 应完整处于相机重叠区域；每路相机需拍摄到两个 Apriltag，水平 FOV 约 180 度。
 
+## 效果图
+
+输入图像（`fallback_image_dir` 目录下的四路鱼眼图，即 `sv_avm_test/res/imagech0.jpg` 至 `imagech3.jpg`）：
+
+<table><tr>
+<td><img src="sv_avm_test/res/imagech0.jpg" width="320" alt="ch0"></td>
+<td><img src="sv_avm_test/res/imagech1.jpg" width="320" alt="ch1"></td>
+</tr><tr>
+<td><img src="sv_avm_test/res/imagech2.jpg" width="320" alt="ch2"></td>
+<td><img src="sv_avm_test/res/imagech3.jpg" width="320" alt="ch3"></td>
+</tr></table>
+
+渲染输出（`offscreen_output_path`）：
+
+<table><tr>
+<td><img src="assets/images/avm_output.jpg" width="960" alt="AVM 渲染输出"></td>
+</tr></table>
+
 ## 性能指标
 
 既有测试条件：4 路 1280x720 鱼眼输入，Release 构建，1920x1080 输出。

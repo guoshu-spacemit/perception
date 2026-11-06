@@ -248,6 +248,21 @@ cd /path/to/planar_image_stitching
 "runtime": { "frames": 200, "force_offscreen": true }
 ```
 
+## 效果图
+
+输入图像（`config.json` 中 `input.left_image` / `input.right_image`）：
+
+<table><tr>
+<td><img src="assets/s0_left.jpg" width="480" alt="左路输入"></td>
+<td><img src="assets/s0_right.jpg" width="480" alt="右路输入"></td>
+</tr></table>
+
+渲染输出（`output.image`）：
+
+<table><tr>
+<td><img src="assets/images/planar_output.jpg" width="960" alt="拼接输出"></td>
+</tr></table>
+
 ## 性能指标
 
 1080P 输出下的实测帧率：
