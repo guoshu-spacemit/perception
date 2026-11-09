@@ -11,7 +11,6 @@ stereo_matching/
 │   └── stereo_matching/
 │       └── pipeline.h            # Camera / ExternalStereo API
 ├── lib/libstereo_matching.so
-├── model/LAS2_M_288x384.fp16.onnx  # tensor API 模型
 ├── demo/demo.cpp                 # SDK 图片输入示例
 ├── src/
 │   ├── stereo_pipeline.cpp        # 公共 API 实现与槽位生命周期
@@ -33,15 +32,19 @@ stereo_matching/
 
 ## 运行 demo
 
+模型不随源码仓库提供。tensor API demo 需自行准备匹配模型，并通过
+`STEREO_MODEL` 指定路径；下文的归档下载地址用于 ExternalStereo，不能混用。
+
 左右图作为外部输入：
 
 ```bash
+STEREO_MODEL=/path/to/tensor/LAS2_M_288x384.fp16.onnx \
 STEREO_LEFT=/path/Motorcycle-perfect/im0.png \
 STEREO_RIGHT=/path/Motorcycle-perfect/im1.png \
 ./run.sh
 ```
 
-默认使用 `model/LAS2_M_288x384.fp16.onnx`，输入宽×高为
+通过 `STEREO_MODEL` 指定下载后的模型，输入宽×高为
 `384×288`。默认配置是 8 个 A100 核和 4 个实例。可通过以下环境变量
 调整：
 
@@ -56,7 +59,7 @@ STEREO_RIGHT=/path/Motorcycle-perfect/im1.png \
 #include <stereo_matching.h>
 
 spacemit::stereo::Config config;
-config.model_path = "./model/LAS2_M_288x384.fp16.onnx";
+config.model_path = "/path/to/LAS2_M_288x384.fp16.onnx";
 config.a100_core_count = 8;
 config.instance_count = 8;
 
@@ -158,9 +161,19 @@ ExternalStereo 必须使用其匹配的 FP16 模型：
 `LAS2_M_288x384.fp16.onnx`，SHA-256 为
 `aa4f22f0f2433dc317ae3fa028549b9e228200c117d95121e19cfa0f1615145a`。
 它接受外部 ImageNet 归一化的 RGB，输入/输出张量为 FP16。
-本目录 `model/` 下同名模型属于原 tensor API，SHA-256 为
+上述 tensor API 的同名模型 SHA-256 为
 `daef9f5c3e2181116bde4d045dcb8338fe519fc46ec5e82fc41961d590c3ba9a`；
 两者不能因文件名相同而互换。应用通过配置提供模型和 Kalibr 标定路径。
+
+ExternalStereo 模型使用以下固定地址下载；归档文件需刷新为上述 SHA-256 对应的版本：
+
+```bash
+MODEL_PATH="$HOME/spacemit-models/las2-external/LAS2_M_288x384.fp16.onnx"
+mkdir -p "$(dirname "$MODEL_PATH")"
+wget -O "$MODEL_PATH" \
+  https://archive.spacemit.com/spacemit-ai/model_zoo/vision/stereo_depth/LAS2_M_288x384.fp16.onnx
+```
+
 可显式设置 `STEREO_MATCHING_EXTERNAL_INPUT_MODEL=/path/to/matched/model.onnx`
 将其部署到 `share/stereo_matching/external_input/model/`；默认不安装该外部模型，
 也不覆盖原 tensor API 的 `share/stereo_matching/model/`。
