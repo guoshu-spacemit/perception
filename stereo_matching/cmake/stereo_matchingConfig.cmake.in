@@ -15,6 +15,6 @@ if(stereo_matching_external_input_FOUND AND NOT TARGET stereo_matching::external
 endif()
 if("external_input" IN_LIST stereo_matching_FIND_COMPONENTS AND NOT stereo_matching_external_input_FOUND)
   set(stereo_matching_NOT_FOUND_MESSAGE
-    "The NV12 ExternalStereo backend is not installed. Build this package with STEREO_MATCHING_BUILD_EXTERNAL_INPUT=ON and an external matched ONNXRUNTIME_ROOT, or explicitly select a matching prebuilt backend. The tensor-only library does not replace rectification/depth/RGB processing.")
+    "The NV12 ExternalStereo backend is not installed. Build this package with STEREO_MATCHING_BUILD_EXTERNAL_INPUT=ON using the bundled RISC-V64 runtime or an explicit matched ONNXRUNTIME_ROOT, or select a matching prebuilt backend. The tensor-only library does not replace rectification/depth/RGB processing.")
 endif()
 check_required_components(stereo_matching)

@@ -20,11 +20,20 @@ def main():
     header = root / contract["public_api_header"]
     assert hashlib.sha256(header.read_bytes()).hexdigest() == contract["public_api_sha256"]
     assert contract["model"]["external_only"]
-    assert contract["runtime"]["external_only"]
-    assert contract["runtime"]["artifact_manifest"] == "SHA256SUMS"
+    runtime = contract["runtime"]
+    assert not runtime["external_only"]
+    assert runtime["delivery"] == "embedded_shared_library"
+    assert runtime["artifact_manifest"] == "SHA256SUMS"
+    library = root / runtime["embedded_library"]
+    assert hashlib.sha256(library.read_bytes()).hexdigest() == runtime["embedded_library_sha256"]
+    headers = list((root / "thirdparty/onnxruntime/include").glob("*.h"))
+    assert headers
+    for header in headers:
+        expected = runtime["development_headers"]["include/" + header.name]
+        assert hashlib.sha256(header.read_bytes()).hexdigest() == expected
     assert "source_revision" not in contract
     assert "not a byte-for-byte copy" in upstream["sdk_adaptation"]["relationship"]
-    print("PASS upstream algorithm/license, current public API and external deployment metadata")
+    print("PASS upstream attribution, public API, bundled runtime and external model metadata")
 
 
 if __name__ == "__main__":

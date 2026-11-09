@@ -58,14 +58,21 @@ thirdparty/dmabufheap 保留以下原始版权声明：
 
 此处的 AOSP 署名及 Apache-2.0 许可说明对应 dmabufheap 组件。
 
-4. 外部运行库与模型
+4. 推理运行库与模型
 
-配套的 SpacemiT ONNX Runtime / EP、TCM 运行库和 ExternalStereo FP16
-模型作为外部构建、部署工件提供；版本、接口及哈希见
-RUNTIME_CONTRACT.json。
+默认使用的 libstereo_matching_runtime.so 内嵌配套的 ONNX Runtime、
+SpacemiT EP、providers shared 和 TCM 运行库。编译所需的公开头文件位于
+thirdparty/onnxruntime/include；版本、接口及原始工件哈希见
+RUNTIME_CONTRACT.json。ExternalStereo FP16 模型仍单独下载，不随源码提供。
 
-外部运行工件的许可文件随所选工件保留。启用运行库安装时，构建规则
-会将所提供的运行库 LICENSE 安装为：
+配套 SpacemiT 运行工件提供的 MIT 许可证保留于：
+  licenses/spacemit-runtime-MIT.txt
+
+Microsoft ONNX Runtime 公开头文件的 MIT 许可证保留于：
+  thirdparty/onnxruntime/LICENSE
+  https://github.com/microsoft/onnxruntime/blob/v1.24.2/LICENSE
+
+显式选择外部 ONNXRUNTIME_ROOT 时，构建规则仍将该工件的 LICENSE 安装为：
   share/stereo_matching/licenses/external-ort-LICENSE
 
 各组件的版权及许可信息以其原始文件和随附文档为准。
