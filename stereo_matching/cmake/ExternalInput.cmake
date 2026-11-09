@@ -7,23 +7,26 @@ find_package(yaml-cpp REQUIRED)
 
 set(ONNXRUNTIME_ROOT "$ENV{ONNXRUNTIME_ROOT}" CACHE PATH
   "External matched SpaceMIT ORT/EP development and runtime artifact")
-if(NOT ONNXRUNTIME_ROOT)
-  message(FATAL_ERROR
-    "Source ExternalStereo requires an explicit ONNXRUNTIME_ROOT with the matched "
-    "SpaceMIT ORT/EP headers and libraries; private runtime/model files are not in this source package")
-endif()
-find_path(LAS2_ORT_INCLUDE_DIR onnxruntime_cxx_api.h
-  PATHS "${ONNXRUNTIME_ROOT}/include" NO_DEFAULT_PATH REQUIRED)
-find_library(LAS2_ORT_LIBRARY onnxruntime
-  PATHS "${ONNXRUNTIME_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
-find_library(LAS2_EP_LIBRARY spacemit_ep
-  PATHS "${ONNXRUNTIME_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv")
-  if(NOT EXISTS "${LAS2_ORT_INCLUDE_DIR}/spacemit_ort_env.h")
-    message(FATAL_ERROR "ONNXRUNTIME_ROOT is missing the matched spacemit_ort_env.h")
-  endif()
-  find_library(LAS2_TCM_LIBRARY spine_tcm
+set(_las2_use_embedded_runtime FALSE)
+if(ONNXRUNTIME_ROOT)
+  find_path(LAS2_ORT_INCLUDE_DIR onnxruntime_cxx_api.h
+    PATHS "${ONNXRUNTIME_ROOT}/include" NO_DEFAULT_PATH REQUIRED)
+  find_library(LAS2_ORT_LIBRARY onnxruntime
     PATHS "${ONNXRUNTIME_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+  find_library(LAS2_EP_LIBRARY spacemit_ep
+    PATHS "${ONNXRUNTIME_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv")
+    if(NOT EXISTS "${LAS2_ORT_INCLUDE_DIR}/spacemit_ort_env.h")
+      message(FATAL_ERROR "ONNXRUNTIME_ROOT is missing the matched spacemit_ort_env.h")
+    endif()
+    find_library(LAS2_TCM_LIBRARY spine_tcm
+      PATHS "${ONNXRUNTIME_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+  endif()
+  set(_las2_runtime_libraries "${LAS2_ORT_LIBRARY}" "${LAS2_EP_LIBRARY}")
+  set(_las2_runtime_build_rpath "${ONNXRUNTIME_ROOT}/lib")
+else()
+  set(_las2_use_embedded_runtime TRUE)
+  include("${CMAKE_CURRENT_LIST_DIR}/EmbeddedRuntime.cmake")
 endif()
 
 get_filename_component(_las2_sdk_root "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
@@ -59,11 +62,11 @@ endif()
 target_compile_options(stereo_matching_pipeline PRIVATE -O3 -Wall -Wextra -ffunction-sections -fdata-sections)
 target_link_options(stereo_matching_pipeline PRIVATE -Wl,--gc-sections -Wl,--no-undefined)
 target_link_libraries(stereo_matching_pipeline PRIVATE
-  ${OpenCV_LIBS} OpenCL::OpenCL "${LAS2_ORT_LIBRARY}" "${LAS2_EP_LIBRARY}"
+  ${OpenCV_LIBS} OpenCL::OpenCL ${_las2_runtime_libraries}
   Threads::Threads yaml-cpp)
 set_target_properties(stereo_matching_pipeline PROPERTIES
   CXX_EXTENSIONS OFF VERSION 1.0.0 SOVERSION 1
-  BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib" INSTALL_RPATH "$ORIGIN")
+  BUILD_RPATH "${_las2_runtime_build_rpath}" INSTALL_RPATH "$ORIGIN")
 install(TARGETS stereo_matching_pipeline LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES UPSTREAM.json RUNTIME_CONTRACT.json
   DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching)

@@ -3,7 +3,7 @@
   "public_api_sha256": "e9dbd5149ca0ec323c77c6bfd476d2e115673061bb77bd1f9bbf186797c2daf9",
   "backend": "ort",
   "runtime": {
-    "external_only": true,
+    "external_only": false,
     "package_version": "2.0.4",
     "ort_abi": "1.24.2+spacemit.a1",
     "ort_build_commit": "c178f12b2",
@@ -33,7 +33,10 @@
       "include/spine_vision_engine.h": "a09e0c78e7e9fb787269490af19a96b21f4e78cb84d929c7d404f9ab539dca77"
     },
     "artifact_root": "ONNXRUNTIME_ROOT",
-    "artifact_manifest": "SHA256SUMS"
+    "artifact_manifest": "SHA256SUMS",
+    "delivery": "embedded_shared_library",
+    "embedded_library": "lib/libstereo_matching_runtime.so",
+    "embedded_library_sha256": "a5edbe0e924e3acc10ac9324f14314a8b35816fe9ff3e79b65a3c6c109ca2559"
   },
   "model": {
     "external_only": true,

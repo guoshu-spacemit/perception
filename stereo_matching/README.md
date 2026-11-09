@@ -10,7 +10,9 @@ stereo_matching/
 │   ├── stereo_matching.h          # tensor API
 │   └── stereo_matching/
 │       └── pipeline.h            # Camera / ExternalStereo API
-├── lib/libstereo_matching.so
+├── lib/
+│   ├── libstereo_matching.so
+│   └── libstereo_matching_runtime.so # 内嵌配套 ORT/EP/TCM 的 RISC-V64 库
 ├── demo/demo.cpp                 # SDK 图片输入示例
 ├── src/
 │   ├── stereo_pipeline.cpp        # 公共 API 实现与槽位生命周期
@@ -20,7 +22,9 @@ stereo_matching/
 │   └── ...                       # 校正、缓存与计时辅助头
 ├── cmake/
 ├── tests/
-├── thirdparty/dmabufheap/
+├── thirdparty/
+│   ├── dmabufheap/
+│   └── onnxruntime/include/      # 编译后端所需的公开接口头
 ├── licenses/LiteAnyStereo-MIT.txt
 ├── CMakeLists.txt
 ├── NOTICE
@@ -118,22 +122,28 @@ K3，`384×288`，预热 10 次，纯推理：
 
 ### 从源码构建 ExternalStereo
 
-在 K3 上准备 SDK 的 OpenCV、OpenCL、yaml-cpp 开发依赖后，指定
-外部匹配的 SpaceMIT ORT/EP 工件目录。目录需包含 `include/` 和 `lib/`；
-版本、头文件和运行库 SHA-256 见 `RUNTIME_CONTRACT.json`。
+在 K3 上准备 SDK 的 OpenCV、OpenCL、yaml-cpp 开发依赖后，可直接编译。
+默认链接随包的 `libstereo_matching_runtime.so`；它内嵌已匹配的
+ORT、EP、providers 和 TCM 库，加载时从内存载入，不需要另外设置
+`ONNXRUNTIME_ROOT`。该库仅支持 Linux/RISC-V64 LP64D，配置时会检查
+目标架构及 SHA-256。版本和内嵌运行库哈希见 `RUNTIME_CONTRACT.json`。
+模型仍由用户单独下载，编译不需要模型文件。
+
+运行库应随 LAS2 进程在启动时载入。若使用后期动态加载的 ROS 组件，需在启动
+组件容器时预加载 `libstereo_matching_runtime.so`；SpacemiT VSLAM 的桌面与
+重建流程需配套支持该库的启动入口，无需修改系统环境。
 
 ```bash
 cmake -S "$SROBOTIS_ROOT/components/perception/stereo_matching" \
   -B /tmp/las2-external-build \
   -DCMAKE_INSTALL_PREFIX=/path/to/product-prefix \
-  -DSTEREO_MATCHING_BUILD_EXTERNAL_INPUT=ON \
-  -DONNXRUNTIME_ROOT=/path/to/runtime/onnxruntime
+  -DSTEREO_MATCHING_BUILD_EXTERNAL_INPUT=ON
 cmake --build /tmp/las2-external-build -j4
 cmake --install /tmp/las2-external-build
 ```
 
-通过 SDK 构建入口时，将后两个 `-D` 参数逐行加入
-`SROBOTIS_NATIVE_CMAKE_EXTRA_ARGS`。MPP 头文件默认复用当前 SDK
+通过 SDK 构建入口时，将 `-DSTEREO_MATCHING_BUILD_EXTERNAL_INPUT=ON`
+加入 `SROBOTIS_CMAKE_EXTRA_ARGS`。MPP 头文件默认复用当前 SDK
 `components/multimedia/mpp`；独立构建可设置 `MPP_ROOT`。DMA heap 分配器
 使用 `thirdparty/dmabufheap` 内最小 Apache-2.0 源码快照，也可通过
 `DMABUFHEAP_ROOT` 指定兼容源码。默认保留 RVV 校正；
@@ -141,16 +151,23 @@ cmake --install /tmp/las2-external-build
 
 构建后安装 `libstereo_matching_pipeline.so` 并导出
 `stereo_matching::external_input`。源码后端默认启用
-`STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME`：从显式选择的
-`ONNXRUNTIME_ROOT/lib` 将四类 ORT/EP/TCM 运行库及 ABI 符号链接安装到
-SDK `lib/`，许可证和工件清单安装到 `share/stereo_matching/`。
+`STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME`：将单个内嵌运行库安装到 SDK
+`lib/`，许可证和部署 SHA-256 清单安装到 `share/stereo_matching/`。
 后端以相对 `$ORIGIN` 查找这些依赖，安装包不记录构建机器的 ORT 绝对路径。
-这些文件只进入构建安装/部署工件，不复制到 SDK 源码，也不安装私有开发头。
+不安装私有开发头。
 可在安装前缀目录运行
 `sha256sum -c share/stereo_matching/external_input/runtime/DEPLOYED_RUNTIME_SHA256SUMS`
-核验实际部署的文件；原工件清单保留为 `SOURCE_SHA256SUMS`。
+核验实际部署的文件。
 如设 `STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME=OFF`，部署方需自行提供
 完全匹配的运行库，并在链接与运行阶段配置搜索路径。
+
+需要替换默认运行库时，可显式传入
+`-DONNXRUNTIME_ROOT=/path/to/matched/onnxruntime`。该目录需完整包含
+`include/`、`lib/` 和 `LICENSE`；此模式继续使用目录内四类 ORT/EP/TCM
+运行库及其 ABI 符号链接，并将它们安装到 SDK `lib/`。原工件清单保留为
+`SOURCE_SHA256SUMS`。显式选择的工件必须与后端和模型匹配，不能只按同名
+版本号替换其中一个库。
+
 也可用原有 `STEREO_MATCHING_EXTERNAL_INPUT_LIBRARY`
 显式安装匹配的预编译后端，不能同时启用源码构建。预编译入口使用工具链的
 `readelf` 检查 ELF；安装时同时保留标准库名和版本化 SONAME，输入可以是实际
@@ -184,7 +201,7 @@ wget -O "$MODEL_PATH" \
 ExternalStereo 不导入或传输 VB token，也不链接 MPP 运行库；相机/解码
 的 MPP ABI 和整条 DMA-BUF 路径仍需板端联调。
 
-非 RISC-V 目标默认不强制要求 TCM；配套工件包含 TCM 时仍会一并安装。
+显式外部运行库模式中，非 RISC-V 目标默认不强制要求 TCM；配套工件包含 TCM 时仍会一并安装。
 若所选 EP 在非 RISC-V 上通过动态加载使用 TCM，应显式设置
 `STEREO_MATCHING_EXTERNAL_RUNTIME_REQUIRES_TCM=ON`，缺失时会拒绝打包。
 RISC-V 的 TCM 必需性保持。
@@ -208,6 +225,9 @@ ctest --test-dir build-lifecycle -L lifecycle --output-on-failure
 主机可运行 `python3 tests/test_runtime_packaging.py`，用临时 ELF 库验证
 运行库/链接/许可证/SHA 安装、模型隔离，以及移动安装前缀后的 consumer
 真实链接、执行和 TCM 动态加载；该检查需要 C 编译器、CMake 和 readelf。
+`python3 tests/test_embedded_runtime_packaging.py` 使用主机 ELF 替身和实际
+包构建规则，检查默认运行库选择、哈希/架构拒绝、模型可选安装，以及移动
+安装前缀后的消费者链接运行；它不验证真实 RISC-V ORT/EP 推理。
 `python3 tests/test_prebuilt_backend.py` 使用实际包构建规则检查无 SONAME、
 版本化 SONAME 和符号链接形式的预编译库安装，以及安装后的 consumer 链接运行。
 
