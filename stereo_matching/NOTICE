@@ -1,78 +1,37 @@
-Stereo Matching / LAS2 来源说明
-================================
+Stereo Matching / LAS2
 
-1. 原始算法、作者与许可证
+LiteAnyStereo 算法与参考实现
+https://github.com/TomTomTommi/LiteAnyStereo
+论文 Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching
+https://arxiv.org/abs/2606.24457
 
-Lite Any Stereo（LAS）系列的官方算法仓库：
-  https://github.com/TomTomTommi/LiteAnyStereo
+以下 MIT 文本适用于 LiteAnyStereo 上游（Junpeng Jing）及随附的
+推理运行库（SpacemiT）。
 
-LAS2 算法论文：
-  Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching
-  Junpeng Jing, Ronglai Zuo, Zhelun Shen, Shangchen Zhou,
-  Rolandos Alexandros Potamias, Stefanos Zafeiriou,
-  Krystian Mikolajczyk, Jiankang Deng
-  arXiv:2606.24457, 2026
-  https://arxiv.org/abs/2606.24457
+MIT License
 
-官方算法仓库的 MIT 许可证保留以下原始版权声明：
-  Copyright (c) 2025 Junpeng Jing
+Copyright (c) 2025 Junpeng Jing
+Copyright (c) 2025 SpacemiT
 
-原始许可证全文位于：
-  licenses/LiteAnyStereo-MIT.txt
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-论文引用采用官方仓库公布的信息：
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-@article{jing2026litestereov2,
-  title={Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching},
-  author={Junpeng Jing and Ronglai Zuo and Zhelun Shen and Shangchen Zhou and Rolandos Alexandros Potamias and Stefanos Zafeiriou and Krystian Mikolajczyk and Jiankang Deng},
-  year={2026},
-  eprint={2606.24457},
-  archivePrefix={arXiv},
-  primaryClass={cs.CV},
-  url={https://arxiv.org/abs/2606.24457}
-}
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
-2. SpacemiT SDK 适配
+第三方依赖保留原版权与许可证。
 
-SpacemiT Robot Team 维护本目录面向 K3 的 C++ SDK 适配，包括外部 NV12
-输入、标定校正、DMA-BUF 预处理、ORT/EP 推理接入、深度及 RGB 输出，
-以及 Robot SDK 的构建、安装导出和资源生命周期验证。
-
-算法上游提供 LAS2 模型及官方参考实现；本目录的 C++ 平台适配与其
-分别记录，不能视为官方仓库的逐字节源码快照。上游与适配说明见
-UPSTREAM.json。
-
-3. 第三方 dmabufheap
-
-thirdparty/dmabufheap 保留以下原始版权声明：
-  Copyright (C) 2020 The Android Open Source Project
-
-上游项目：
-  https://android.googlesource.com/platform/system/memory/libdmabufheap/
-
-该组件的 Apache License 2.0 全文位于：
-  thirdparty/dmabufheap/LICENSE
-
-源码快照说明及文件范围见：
-  thirdparty/dmabufheap/README.vendor.md
-
-此处的 AOSP 署名及 Apache-2.0 许可说明对应 dmabufheap 组件。
-
-4. 推理运行库与模型
-
-默认使用的 libstereo_matching_runtime.so 内嵌配套的 ONNX Runtime、
-SpacemiT EP、providers shared 和 TCM 运行库。编译所需的公开头文件位于
-thirdparty/onnxruntime/include；版本、接口及原始工件哈希见
-RUNTIME_CONTRACT.json。ExternalStereo FP16 模型仍单独下载，不随源码提供。
-
-配套 SpacemiT 运行工件提供的 MIT 许可证保留于：
-  licenses/spacemit-runtime-MIT.txt
-
-Microsoft ONNX Runtime 公开头文件的 MIT 许可证保留于：
-  thirdparty/onnxruntime/LICENSE
-  https://github.com/microsoft/onnxruntime/blob/v1.24.2/LICENSE
-
-显式选择外部 ONNXRUNTIME_ROOT 时，构建规则仍将该工件的 LICENSE 安装为：
-  share/stereo_matching/licenses/external-ort-LICENSE
-
-各组件的版权及许可信息以其原始文件和随附文档为准。
+- AOSP dmabufheap，Apache-2.0，见 thirdparty/dmabufheap/LICENSE。
+- Microsoft ONNX Runtime，MIT，见 thirdparty/onnxruntime/LICENSE。

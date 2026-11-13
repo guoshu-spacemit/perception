@@ -18,10 +18,6 @@ if(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME)
   set(_las2_runtime_files)
   if(_las2_use_embedded_runtime)
     set(_las2_runtime_files "${LAS2_EMBEDDED_RUNTIME_LIBRARY}")
-    set(_las2_runtime_license "${CMAKE_CURRENT_SOURCE_DIR}/licenses/spacemit-runtime-MIT.txt")
-    if(NOT EXISTS "${_las2_runtime_license}")
-      message(FATAL_ERROR "The bundled LAS2 runtime must include its license")
-    endif()
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onnxruntime/LICENSE")
       message(FATAL_ERROR "The bundled LAS2 runtime must include the ONNX Runtime license")
     endif()
@@ -64,7 +60,6 @@ if(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME)
     if(NOT EXISTS "${ONNXRUNTIME_ROOT}/LICENSE")
       message(FATAL_ERROR "The selected external runtime artifact must include LICENSE")
     endif()
-    set(_las2_runtime_license "${ONNXRUNTIME_ROOT}/LICENSE")
   endif()
   # FILES preserves the artifact's relative ABI and dlopen-name symlinks.
   install(FILES ${_las2_runtime_files} DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -78,10 +73,10 @@ if(STEREO_MATCHING_INSTALL_EXTERNAL_RUNTIME)
   endforeach()
   install(FILES "${_las2_deployed_checksums}"
     DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/external_input/runtime)
-  install(FILES "${_las2_runtime_license}"
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/licenses
-    RENAME external-ort-LICENSE)
   if(NOT _las2_use_embedded_runtime)
+    install(FILES "${ONNXRUNTIME_ROOT}/LICENSE"
+      DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/licenses
+      RENAME external-ort-LICENSE)
     install(FILES "${ONNXRUNTIME_ROOT}/SHA256SUMS"
       DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/external_input/runtime
       RENAME SOURCE_SHA256SUMS OPTIONAL)

@@ -14,18 +14,10 @@ if(NOT EXISTS "${LAS2_EMBEDDED_RUNTIME_LIBRARY}")
     "Use the complete SDK checkout or explicitly select ONNXRUNTIME_ROOT.")
 endif()
 
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/RUNTIME_CONTRACT.json" _las2_runtime_contract)
-string(REGEX MATCH
-  "\"embedded_library_sha256\"[ \t\r\n]*:[ \t\r\n]*\"([0-9a-f]+)\""
-  _las2_runtime_hash_field "${_las2_runtime_contract}")
-set(_las2_runtime_expected_hash "${CMAKE_MATCH_1}")
-string(LENGTH "${_las2_runtime_expected_hash}" _las2_runtime_hash_length)
-if(NOT _las2_runtime_hash_length EQUAL 64)
-  message(FATAL_ERROR "RUNTIME_CONTRACT.json must identify the bundled runtime SHA256")
-endif()
+set(_las2_runtime_expected_hash "a5edbe0e924e3acc10ac9324f14314a8b35816fe9ff3e79b65a3c6c109ca2559")
 file(SHA256 "${LAS2_EMBEDDED_RUNTIME_LIBRARY}" _las2_runtime_actual_hash)
 if(NOT _las2_runtime_actual_hash STREQUAL _las2_runtime_expected_hash)
-  message(FATAL_ERROR "Bundled LAS2 runtime SHA256 does not match RUNTIME_CONTRACT.json")
+  message(FATAL_ERROR "Bundled LAS2 runtime SHA256 does not match the expected value")
 endif()
 
 file(READ "${LAS2_EMBEDDED_RUNTIME_LIBRARY}" _las2_runtime_elf HEX LIMIT 52)

@@ -15,7 +15,7 @@
 
 ### [双目匹配 (Stereo Matching)](./stereo_matching/)
 
-面向 K3 的 LAS2 双目视差推理库，提供头文件、动态库、模型和图片 demo。
+面向 K3 的 LAS2 双目匹配库。支持左右图片的视差推理，以及外部 NV12 帧的校正、米制深度和对齐 RGB 输出。模型按接口单独准备。
 
 ## 平台支持
 
@@ -40,7 +40,8 @@ cmake -B build && cmake --build build -j8
 
 # 双目匹配（Middlebury 图片）
 cd stereo_matching
-STEREO_LEFT=/path/to/im0.png STEREO_RIGHT=/path/to/im1.png ./run.sh
+STEREO_MODEL=/path/to/tensor/LAS2_M_288x384.fp16.onnx \
+  STEREO_LEFT=/path/to/im0.png STEREO_RIGHT=/path/to/im1.png ./run.sh
 ```
 
 详细的编译、配置和使用说明见各模块的 README.md。
@@ -58,9 +59,9 @@ perception/
     └── planar_image_stitching/        # 平面全景拼接
         └── README.md
 └── stereo_matching/                   # LAS2 双目视差推理 SDK
-    ├── include/stereo_matching.h       # 唯一客户头文件
-    ├── lib/libstereo_matching.so       # 唯一客户链接库
-    ├── model/LAS2_M_288x384.fp16.onnx
+    ├── include/stereo_matching.h      # 图片与张量推理接口
+    ├── include/stereo_pipeline.h      # 外部 NV12 等管线接口
+    ├── lib/                           # 推理库及配套运行库
     ├── demo/demo.cpp
     └── run.sh
 ```

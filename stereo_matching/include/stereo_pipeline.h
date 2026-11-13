@@ -1,5 +1,5 @@
-#ifndef PIPELINE_H
-#define PIPELINE_H
+#ifndef STEREO_PIPELINE_H
+#define STEREO_PIPELINE_H
 
 #include <array>
 #include <cstdint>
@@ -233,4 +233,4 @@ private:
 
 } // namespace las2
 
-#endif // PIPELINE_H
+#endif // STEREO_PIPELINE_H

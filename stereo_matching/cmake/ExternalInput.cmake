@@ -1,4 +1,4 @@
-# The public API is stereo_matching/pipeline.h. Compile only this TU:
+# The public header is include/stereo_pipeline.h. Compile only this TU:
 # its private runtime and preprocessing headers contain the shared implementation.
 find_package(OpenCV REQUIRED COMPONENTS core imgproc calib3d)
 find_package(OpenCL REQUIRED)
@@ -68,10 +68,6 @@ set_target_properties(stereo_matching_pipeline PROPERTIES
   CXX_EXTENSIONS OFF VERSION 1.0.0 SOVERSION 1
   BUILD_RPATH "${_las2_runtime_build_rpath}" INSTALL_RPATH "$ORIGIN")
 install(TARGETS stereo_matching_pipeline LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES UPSTREAM.json RUNTIME_CONTRACT.json
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching)
 install(FILES thirdparty/dmabufheap/LICENSE
   DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/licenses RENAME dmabufheap-LICENSE)
-install(FILES licenses/LiteAnyStereo-MIT.txt
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/stereo_matching/licenses)
 include("${CMAKE_CURRENT_LIST_DIR}/ExternalRuntime.cmake")

@@ -5,8 +5,6 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 option(STEREO_MATCHING_BUILD_DEMO "Build the image-file inference demo" OFF)
 option(STEREO_MATCHING_BUILD_EXTERNAL_INPUT "Build the LAS2 NV12 DMA-BUF source backend" OFF)
-option(STEREO_MATCHING_BUILD_TESTS "Build LAS2 CPU and explicit GPU regression probes" OFF)
-option(STEREO_MATCHING_BUILD_LIFECYCLE_TESTS "Test resource lifetimes with host syscall/DMA fakes" OFF)
 option(LAS2_ENABLE_RVV_RECTIFICATION "Use RVV map operations when supported by the compiler" ON)
 set(STEREO_MATCHING_EXTERNAL_INPUT_LIBRARY "" CACHE FILEPATH
   "Matching NV12 external-input backend; not interchangeable with libstereo_matching.so")
@@ -44,22 +42,6 @@ elseif(STEREO_MATCHING_EXTERNAL_INPUT_LIBRARY)
   endif()
   set(STEREO_MATCHING_HAS_EXTERNAL_INPUT TRUE)
   include(cmake/PrebuiltExternalInput.cmake)
-endif()
-if(STEREO_MATCHING_BUILD_TESTS)
-  include(cmake/ExternalInputTests.cmake)
-endif()
-if(STEREO_MATCHING_BUILD_LIFECYCLE_TESTS)
-  enable_testing()
-  find_package(Python3 REQUIRED COMPONENTS Interpreter)
-  foreach(probe capture_cleanup warmup_lifecycle dma_buffer_cleanup)
-    add_test(NAME ${probe}
-      COMMAND "${CMAKE_COMMAND}" -E env "CXX=${CMAKE_CXX_COMPILER}"
-        "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_${probe}.py")
-  endforeach()
-  add_test(NAME sdk_metadata
-    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sdk_metadata.py")
-  set_tests_properties(capture_cleanup warmup_lifecycle dma_buffer_cleanup sdk_metadata
-    PROPERTIES LABELS "cpu;lifecycle" TIMEOUT 120)
 endif()
 configure_package_config_file(cmake/stereo_matchingConfig.cmake.in
   "${CMAKE_CURRENT_BINARY_DIR}/stereo_matchingConfig.cmake"

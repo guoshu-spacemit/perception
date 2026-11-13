@@ -1,4 +1,4 @@
-#include "stereo_matching/pipeline.h"
+#include "stereo_pipeline.h"
 #include "stereo_pipeline_internal.h"
 
 #include "stereo_preprocessing.h"
